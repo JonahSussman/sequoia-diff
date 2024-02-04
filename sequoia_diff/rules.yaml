@@ -1,0 +1,100 @@
+# Adapted from https://github.com/GumTreeDiff/tree-sitter-parser/blob/main/rules.yml
+go:
+  flattened:
+    - interpreted_string_literal
+  ignored:
+    - "\n"
+    - (
+    - )
+    - '{'
+    - '}'
+    - '.'
+  aliased: {}
+java:
+  flattened:
+    - scoped_identifier
+    - integral_type
+    - array_type
+    - generic_type
+    - scoped_type_identifier 
+    - type_parameter
+  aliased: {}
+  ignored: 
+    - ;
+    - '.'
+    - ','
+    - '{'
+    - '}'
+    - (
+    - )
+    - '['
+    - ']'
+    - import
+    - return
+    - for
+    - if
+    - else
+    - while
+    - break
+    - yield
+    - do
+    - break
+    - throw
+    - 'type_parameters <'
+    - 'type_parameters >'
+ocaml:
+  flattened:
+    - string
+  aliased: {}
+  ignored: []
+python:
+  flattened:
+    - string
+  aliased:
+    '==': comparison_operator
+    '<=': comparison_operator
+    '>=': comparison_operator
+    '!=': comparison_operator
+    '<': comparison_operator
+    '>': comparison_operator
+    '<>': comparison_operator
+  ignored:
+    - '('
+    - ')'
+    - '{'
+    - '}'
+    - '['
+    - ']'
+    - '.'
+    - ':'
+    - ','
+    - 'default_parameter ='
+    - 'import'
+    - 'def'
+    - 'for'
+    - 'in'
+    - 'if'
+    - 'with'
+    - 'as'
+    - 'return'
+rust:
+  flattened:
+    - string_literal
+    - scoped_identifier
+    - visibility_modifier
+  aliased:
+    scoped_identifier: identifier
+  ignored:
+    - ;
+    - '.'
+    - ','
+    - (
+    - )
+    - '{'
+    - '}'
+    - '['
+    - ']'
+    - '::'
+    - ':'
+    - fn
+    - '->'
