@@ -1,6 +1,6 @@
 # from __future__ import annotations # Potentially use this to clean up hints
 
-from typing import Optional, NamedTuple
+from typing import Optional
 from dataclasses import dataclass, field
 from collections import defaultdict
 import heapq

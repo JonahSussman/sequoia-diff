@@ -8,4 +8,6 @@ public class ExampleClass {
       changed = i;
     }
   }  
+
+  private void movedMethod() { }
 }

@@ -1,4 +1,3 @@
-import sys
 from collections import defaultdict
 
 from sequoia_diff.types import MappingDict, Node
