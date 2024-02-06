@@ -5,11 +5,23 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "sequoia_diff"
 version = "0.0.1"
+authors = [
+  { name="Jonah Sussman", email="jsussman@redhat.com" }
+]
+readme = "README.md"
+requires-python = ">=3.10"
+classifiers = [
+  "Programming Language :: Python :: 3"
+]
 dependencies = [
   "tree-sitter==0.20.4",
-  "requests",
-  'importlib-metadata; python_version<"3.10"',
+  # "requests",
+  # 'importlib-metadata; python_version<"3.10"',
 ]
+
+[project.urls]
+Homepage = "https://github.com/JonahSussman/sequoia-diff"
+Issues = "https://github.com/JonahSussman/sequoia-diff/issues"
 
 [tool.setuptools]
 include-package-data = true
