@@ -115,7 +115,6 @@ class ZsTree:
 
     i = self.node_count
     while i >= 1:
-      # print(i, self.lld(i))
       if not visited[self.lld(i)]:
         self.key_roots[k] = i
         visited[self.lld(i)] = True

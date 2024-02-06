@@ -42,20 +42,15 @@ def generate_chawathe_edit_script(mappings: MappingDict, src: Node, dst: Node):
   src_to_cpy = defaultdict(lambda: fake_node())
   cpy_to_src = defaultdict(lambda: fake_node())
   src_gen, cpy_gen = src.preorder(), cpy_src.preorder()
-  # print(src.pretty_str())
+
   while True:
     src_node, cpy_node = next(src_gen), next(cpy_gen)
-    # print(f"{hash(src_node)} - {src_node.pretty_str_self() if src_node is not None else None}")
     if src_node is None or cpy_node is None: break
     src_to_cpy[src_node] = cpy_node
     cpy_to_src[cpy_node] = src_node
 
   for src_node, dst_node in mappings.src_to_dst.items():
-    # print()
-    # print(f"{hash(src_node)} - {src_node.type}")
-    # input()
     cpy_mappings.put(src_to_cpy[src_node], dst_node)
-
 
   src_fake_root, dst_fake_root = fake_node(cpy_src), fake_node(dst)
 
@@ -118,10 +113,8 @@ def generate_chawathe_edit_script(mappings: MappingDict, src: Node, dst: Node):
 
     return result
 
-  # idx = -1
   for x in dst.bfs():
     if x is None: break
-    # idx += 1
 
     w: Node = None
     y: Node = x.parent
@@ -130,7 +123,6 @@ def generate_chawathe_edit_script(mappings: MappingDict, src: Node, dst: Node):
     if x not in cpy_mappings.dst_to_src:
       k = find_pos(x)
       w = fake_node()
-      # print(idx)
       actions.append(Insert(x, cpy_to_src[z], k))
       cpy_to_src[w] = x
       cpy_mappings.put(w, x)
@@ -191,8 +183,6 @@ def generate_chawathe_edit_script(mappings: MappingDict, src: Node, dst: Node):
         src_in_order.add(a)
         dst_in_order.add(b)
 
-  # print(cpy_src.pretty_str())
-
   for w in cpy_src.postorder():
     if w is None: break
     if w.type == 'fake-type': continue
@@ -216,8 +206,7 @@ def generate_simplified_chawathe_edit_script(mappings: MappingDict, src: Node, d
     elif isinstance(a, Delete):
       deleted_nodes[a.node] = a
 
-  # print(deleted_nodes)
-
+  # FIXME: Add to Node class
   def desc(node: Node):
     result: list[Node] = []
     for n in node.preorder():
@@ -240,13 +229,5 @@ def generate_simplified_chawathe_edit_script(mappings: MappingDict, src: Node, d
 
     # if t.parent in added_trees and all(descendant in added_trees for descendant in t.parent.descendants):
     #     actions.remove(added_trees[t])
-
-  # x = 0  
-  # for a in actions:
-  #   if isinstance(a, Delete):
-  #     x += 1
-
-  # print(x)
-  # exit()
 
   return actions
