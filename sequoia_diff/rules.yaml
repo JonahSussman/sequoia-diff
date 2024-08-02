@@ -1,3 +1,7 @@
+# yaml-language-server: $schema=https://json.schemastore.org/yamllint.json
+
+# trunk-ignore-begin(yamllint/quoted-strings)
+
 # Adapted from https://github.com/GumTreeDiff/tree-sitter-parser/blob/main/rules.yml
 go:
   flattened:
@@ -6,9 +10,9 @@ go:
     - "\n"
     - (
     - )
-    - '{'
-    - '}'
-    - '.'
+    - "{"
+    - "}"
+    - "."
   aliased: {}
 java:
   flattened:
@@ -16,19 +20,19 @@ java:
     - integral_type
     - array_type
     - generic_type
-    - scoped_type_identifier 
+    - scoped_type_identifier
     - type_parameter
   aliased: {}
-  ignored: 
+  ignored:
     - ;
-    - '.'
-    - ','
-    - '{'
-    - '}'
+    - "."
+    - ","
+    - "{"
+    - "}"
     - (
     - )
-    - '['
-    - ']'
+    - "["
+    - "]"
     - import
     - return
     - for
@@ -40,8 +44,8 @@ java:
     - do
     - break
     - throw
-    - 'type_parameters <'
-    - 'type_parameters >'
+    - "type_parameters <"
+    - "type_parameters >"
 ocaml:
   flattened:
     - string
@@ -51,32 +55,32 @@ python:
   flattened:
     - string
   aliased:
-    '==': comparison_operator
-    '<=': comparison_operator
-    '>=': comparison_operator
-    '!=': comparison_operator
-    '<': comparison_operator
-    '>': comparison_operator
-    '<>': comparison_operator
+    "==": comparison_operator
+    "<=": comparison_operator
+    ">=": comparison_operator
+    "!=": comparison_operator
+    "<": comparison_operator
+    ">": comparison_operator
+    "<>": comparison_operator
   ignored:
-    - '('
-    - ')'
-    - '{'
-    - '}'
-    - '['
-    - ']'
-    - '.'
-    - ':'
-    - ','
-    - 'default_parameter ='
-    - 'import'
-    - 'def'
-    - 'for'
-    - 'in'
-    - 'if'
-    - 'with'
-    - 'as'
-    - 'return'
+    - "("
+    - ")"
+    - "{"
+    - "}"
+    - "["
+    - "]"
+    - "."
+    - ":"
+    - ","
+    - "default_parameter ="
+    - "import"
+    - "def"
+    - "for"
+    - "in"
+    - "if"
+    - "with"
+    - "as"
+    - "return"
 rust:
   flattened:
     - string_literal
@@ -86,15 +90,16 @@ rust:
     scoped_identifier: identifier
   ignored:
     - ;
-    - '.'
-    - ','
+    - "."
+    - ","
     - (
     - )
-    - '{'
-    - '}'
-    - '['
-    - ']'
-    - '::'
-    - ':'
+    - "{"
+    - "}"
+    - "["
+    - "]"
+    - "::"
+    - ":"
     - fn
-    - '->'
+    - "->"
+# trunk-ignore-end(yamllint/quoted-strings)
