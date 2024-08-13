@@ -5,7 +5,7 @@ from tree_sitter import Language, Parser
 
 from sequoia_diff import SEQUOIA_RULES, get_tree_diff
 from sequoia_diff.matching import generate_mappings
-from sequoia_diff.types import Delete, Insert, MappingDict, Move, Node, Update
+from sequoia_diff.models import Delete, Insert, MappingDict, Move, Node, Update
 
 # Constants
 

@@ -5,12 +5,12 @@ def levenshtein_distance(s1: str | None, s2: str | None):
         s2 = ""
 
     if len(s1) < len(s2):
-        return levenshtein_distance(s2, s1)
+        s1, s2 = s2, s1
 
     if len(s2) == 0:
         return len(s1)
 
-    previous_row = range(len(s2) + 1)
+    previous_row = list(range(len(s2) + 1))
     for i, c1 in enumerate(s1):
         current_row = [i + 1]
         for j, c2 in enumerate(s2):
@@ -56,10 +56,10 @@ def tri_gram_distance(a: str | None, b: str | None):
     return len(set_a) + len(set_b) - len(set_a.intersection(set_b))
 
 
-def normalized_tri_gram_distance(a: str, b: str):
+def normalized_tri_gram_distance(a: str | None, b: str | None):
     if a is None:
-        a = ""
+        return 1.0
     if b is None:
-        b = ""
+        return 1.0
 
     return tri_gram_distance(a, b) / (max(1, len(a) - 2) + max(1, len(b) - 2))

@@ -1,29 +1,22 @@
+import itertools
 import sys
 from collections import defaultdict
 from typing import Callable, Optional
 
+from sequoia_diff.models import MappingDict, Node, NodePriorityQueue
 from sequoia_diff.string_comparisons import normalized_tri_gram_distance
-from sequoia_diff.types import MappingDict, Node, NodePriorityQueue
 
 MatchingFunc = Callable[[MappingDict, Node, Node], MappingDict]
 
 
 def number_of_mapped_descendants(mappings: MappingDict, src: Node, dst: Node):
     dst_descendants: set[Node] = set()
-    for node in dst.preorder():
-        if node is dst:
-            continue
-        if node is None:
-            break
+    for node in dst.pre_order(skip_self=True):
         dst_descendants.add(node)
 
     mapped_descendants: int = 0
 
-    for node in src.preorder():
-        if node is src:
-            continue
-        if node is None:
-            break
+    for node in src.pre_order(skip_self=True):
         if node not in mappings.src_to_dst:
             continue
 
@@ -34,17 +27,16 @@ def number_of_mapped_descendants(mappings: MappingDict, src: Node, dst: Node):
     return mapped_descendants
 
 
-def dice_coefficient(common: int, left: int, right: int):
-    return 2.0 * common / (left + right)
+def dice_similarity(mappings: MappingDict, src: Node, dst: Node) -> float:
+    common = number_of_mapped_descendants(mappings, src, dst)
+    return 2.0 * common / (src.size + dst.size)
 
 
-def dice_similarity(mappings: MappingDict, src: Node, dst: Node):
-    return dice_coefficient(
-        number_of_mapped_descendants(mappings, src, dst), src.size, dst.size
-    )
+def match_greedy_top_down(mappings: MappingDict, src: Node, dst: Node):
+    """
+    Map the common subtrees of src and dst with the greatest height possible.
+    """
 
-
-def match_greedy_subtree(mappings: MappingDict, src: Node, dst: Node):
     ambiguous_mappings: list[tuple[set[Node], set[Node]]] = []
 
     pq_src = NodePriorityQueue()
@@ -53,7 +45,8 @@ def match_greedy_subtree(mappings: MappingDict, src: Node, dst: Node):
     pq_src.push(src)
     pq_dst.push(dst)
 
-    while pq_src.synchronize(pq_dst):
+    # Find trees with the same height
+    while pq_src.synchronize_and_push_children(pq_dst):
         _, src_nodes = pq_src.pop_equal_priority()
         _, dst_nodes = pq_dst.pop_equal_priority()
 
@@ -61,49 +54,61 @@ def match_greedy_subtree(mappings: MappingDict, src: Node, dst: Node):
             lambda: (set(), set())
         )
 
+        # Utilize the hash function to determine of two nodes are isomorphic
         for node in src_nodes:
             local_mappings[hash(node)][0].add(node)
         for node in dst_nodes:
             local_mappings[hash(node)][1].add(node)
 
-        for _key, value in local_mappings.items():
-            if len(value[0]) == 0 or len(value[1]) == 0:  # unmapped
-                for node in value[0]:
+        for _, local_set in local_mappings.items():
+            src_set, dst_set = local_set
+
+            # Unmapped
+            if len(src_set) == 0 or len(dst_set) == 0:
+                for node in src_set:
                     pq_src.push_children(node)
-                for node in value[1]:
+                for node in dst_set:
                     pq_dst.push_children(node)
                 pass
-            elif len(value[0]) == 1 and len(value[1]) == 1:  # unique
-                mappings.put_recursively(list(value[0])[0], list(value[1])[0])
-            else:  # ambiguous
-                ambiguous_mappings.append(value)
 
-    # FIXME: It appears gumtree's sorting is broken. GreedySubtreeMatcher.java:59
-    # def cmp(a: tuple[set[Node], set[Node]], b: tuple[set[Node], set[Node]]):
-    #   return (max(a[0], key=lambda x: x.size)) - (max())
+            # Unique
+            elif len(src_set) == 1 and len(dst_set) == 1:
+                mappings.put_recursively(list(src_set)[0], list(dst_set)[0])
 
-    for value in ambiguous_mappings:
-        for a in value[0]:
-            for b in value[1]:
-                if not (a in mappings.src_to_dst or b in mappings.dst_to_src):
-                    mappings.put_recursively(a, b)
+            # Ambiguous
+            else:
+                ambiguous_mappings.append(local_set)
+
+    # TODO: Implement dice similarity sorting, something like:
+    #   cmp = lambda a, b: dice(*b) - dice(*a)
+    #   key = functools.cmp_to_key(cmp)
+    #   sorted_product = sorted(itertools.product(src_set, dst_set), key=key)
+
+    for src_set, dst_set in ambiguous_mappings:
+        for a, b in itertools.product(src_set, dst_set):
+            if not (a in mappings.src_to_dst or b in mappings.dst_to_src):
+                mappings.put_recursively(a, b)
 
     return mappings
 
 
-class ZsTree:
+class RTEDTree:
+    """
+    https://arxiv.org/pdf/1201.0230
+
+    TODO: Clean up and implement APTED algorithm
+    https://github.com/DatabaseGroup/apted
+    """
+
     def __init__(self, node: Node):
         self.node_count = node.size
         self.leaf_count = 0
-        self.llds: list[int] = [0] * self.node_count
-        self.labels: list[Node] = [None] * self.node_count
+        self.leftmost_leaf_desc: list[int] = [0] * self.node_count
+        self.labels: list[Optional[Node]] = [None] * self.node_count
 
         idx: int = 1
         tmp_data: dict[Node, int] = {}
-        for n in node.postorder():
-            if n is None:
-                break
-
+        for n in node.post_order():
             tmp_data[n] = idx
             self.labels[idx - 1] = n
 
@@ -111,13 +116,11 @@ class ZsTree:
             while len(leaf.children) != 0:
                 leaf = leaf.children[0]
 
-            self.llds[idx - 1] = tmp_data[leaf] - 1
+            self.leftmost_leaf_desc[idx - 1] = tmp_data[leaf] - 1
             if len(n.children) == 0:
                 self.leaf_count += 1
 
             idx += 1
-
-        # set_key_roots
 
         self.key_roots: list[int] = [0] * (self.leaf_count + 1)
         visited: list[bool] = [False] * (self.node_count + 1)
@@ -132,17 +135,21 @@ class ZsTree:
             i -= 1
 
     def lld(self, i):
-        return self.llds[i - 1] + 1
+        return self.leftmost_leaf_desc[i - 1] + 1
 
     def tree(self, i):
         return self.labels[i - 1]
 
 
-# NOTE: I hate this one.
-def match_optimal_zs(mappings: MappingDict, src: Node, dst: Node):
-    # FIXME: This whole thing...
-    zs_src = ZsTree(src)
-    zs_dst = ZsTree(dst)
+def match_rted(mappings: MappingDict, src: Node, dst: Node):
+    """
+    https://arxiv.org/pdf/1201.0230
+
+    TODO: Clean up and implement APTED algorithm
+    https://github.com/DatabaseGroup/apted
+    """
+    zs_src = RTEDTree(src)
+    zs_dst = RTEDTree(dst)
 
     tree_dist = [[0] * (zs_dst.node_count + 1) for i in range(zs_src.node_count + 1)]
     forest_dist = [[0] * (zs_dst.node_count + 1) for i in range(zs_src.node_count + 1)]
@@ -150,9 +157,6 @@ def match_optimal_zs(mappings: MappingDict, src: Node, dst: Node):
     def get_update_cost(a: Node, b: Node):
         if a.type != b.type:
             return sys.float_info.max
-
-        if a.label == "" or b.label == "":
-            return 1.0
 
         return normalized_tri_gram_distance(a.label, b.label)
 
@@ -247,89 +251,108 @@ def match_optimal_zs(mappings: MappingDict, src: Node, dst: Node):
     return mappings
 
 
+def match_last_chance(mappings: MappingDict, a: Node, b: Node):
+    SIZE_THRESHOLD = 1000
+    if a.size >= SIZE_THRESHOLD and b.size >= SIZE_THRESHOLD:
+        return
+
+    zs_mappings = MappingDict()
+    match_rted(zs_mappings, a, b)
+
+    for src_cand, dst_cand in zs_mappings.src_to_dst.items():
+        if mappings.is_mapping_allowed(src_cand, dst_cand):
+            mappings.put(src_cand, dst_cand)
+
+
+def get_dst_candidates(mappings: MappingDict, a: Node):
+    seeds: list[Node] = []
+    candidates: list[Node] = []
+    visited: set[Node] = set()
+
+    for node in a.pre_order(skip_self=True):
+        if node in mappings.src_to_dst:
+            seeds.append(mappings.src_to_dst[node])
+
+    for seed in seeds:
+        while seed.parent is not None:
+            parent = seed.parent
+            if parent in visited:
+                break
+            visited.add(parent)
+            if parent.type == a.type and not (
+                parent in mappings.dst_to_src or parent.parent is None
+            ):
+                candidates.append(parent)
+            seed = parent
+
+    return candidates
+
+
 def match_greedy_bottom_up(mappings: MappingDict, src: Node, dst: Node):
     SIM_THRESHOLD = 0.5
-    SIZE_THRESHOLD = 1000
 
-    def last_chance_match(a: Node, b: Node):
-        if a.size >= SIZE_THRESHOLD and b.size >= SIZE_THRESHOLD:
-            return
-
-        zs_mappings = MappingDict()
-        match_optimal_zs(mappings, a, b)
-
-        src_cand: Node
-        dst_cand: Node
-        for src_cand, dst_cand in zs_mappings.src_to_dst:
-            if mappings.is_mapping_allowed(src_cand, dst_cand):
-                mappings.put(src_cand, dst_cand)
-
-    def get_dst_candidates(a: Node):
-        seeds: list[Node] = []
-        candidates: list[Node] = []
-        visited: set[Node] = set()
-
-        for node in a.preorder():
-            if node is a:
-                continue
-            if node is None:
-                break
-
-            if node in mappings.src_to_dst:
-                seeds.append(mappings.src_to_dst[node])
-
-        for seed in seeds:
-            while seed.parent is not None:
-                parent = seed.parent
-                if parent in visited:
-                    break
-                visited.add(parent)
-                if parent.type == a.type and not (
-                    parent in mappings.dst_to_src or parent.parent is None
-                ):
-                    candidates.append(parent)
-                seed = parent
-
-        return candidates
-
-    for node in src.postorder():
-        if node is None:
-            break
-
+    for node in src.post_order():
         if node.parent is None:
             mappings.put(node, dst)
-            last_chance_match(node, dst)
+            match_last_chance(mappings, node, dst)
             break
 
         if len(node.children) == 0 or node in mappings.src_to_dst:
             continue
 
-        candidates: list[Node] = get_dst_candidates(node)
         best: Optional[Node] = None
         the_max: float = -1.0
-
-        for candidate in candidates:
+        for candidate in get_dst_candidates(mappings, node):
             sim = dice_similarity(mappings, node, candidate)
             if sim > the_max and sim >= SIM_THRESHOLD:
                 the_max = sim
                 best = candidate
 
         if best is not None:
-            last_chance_match(node, best)
+            match_last_chance(mappings, node, best)
             mappings.put(node, best)
 
     return mappings
 
 
-# TODO: Make stateless. Don't like that each function modifies the `mappings`
-# variable, but can't figure out a performant way to do it.
+def match_chawathe_fast(mappings: MappingDict, src: Node, dst: Node):
+    """
+    S. S. Chawathe, A. Rajaraman, H. Garcia-Molina, and J. Widom. Change
+    detection in hierarchically structured information. In Proceedings of the
+    1996 International Conference on Management of Data, pages 493–504. ACM
+    Press, 1996.
+
+    1. M <- phi
+    2. For each leaf label l do
+        a. S1 <- chain_T1(l)
+        b. S2 <- chain_T2(l)
+        c. lcs <- LCS(S1, S2, equal)
+        d. For each pair (x, y) in lcs, add (x, y) to M
+        e. For each unmatched node x in S1, if there is an unmatched node y in
+           S2 such that equal(x, y) then
+            i. Add (x, y) to M
+            ii. Mark x and y "matched"
+    3. Repeat steps 2a-2e for each internal node label l.
+    """
+
+    raise NotImplementedError()
+
+
 def generate_mappings(
     src: Node,
     dst: Node,
     funcs: list[MatchingFunc] | None = None,
 ):
+    """
+    Establish mappings between similar nodes of the two trees.
+
+    There are only two constraints for these mappings:
+    - A given node can only belong to one mapping.
+    - Mappings involve two nodes with identical types.
+    """
+
     if funcs is None:
-        funcs = [match_greedy_subtree, match_greedy_bottom_up]
+        funcs = [match_greedy_top_down, match_greedy_bottom_up]
 
     mappings = MappingDict()
     for f in funcs:

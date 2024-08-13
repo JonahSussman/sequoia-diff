@@ -1,72 +1,37 @@
-import os
-from collections import defaultdict
-
-import yaml
-from tree_sitter import Tree
+from typing import Any, Optional
 
 from sequoia_diff.actions import generate_simplified_chawathe_edit_script
+from sequoia_diff.loaders import LoaderFunc, from_tree_sitter_tree
 from sequoia_diff.matching import generate_mappings
-from sequoia_diff.types import (
-    Action,
-    Delete,
-    Insert,
-    MappingDict,
-    Move,
-    Node,
-    Rules,
-    Update,
-)
-
-SEQUOIA_RULES = defaultdict(lambda: Rules([], {}, []))
+from sequoia_diff.models import Action, MappingDict, Node
 
 
-def setup_module():
-    global SEQUOIA_RULES
+def get_tree_diff(
+    old_tree: Any,
+    new_tree: Any,
+    loader: Optional[LoaderFunc] = None,
+    loader_args: Optional[list[Any]] = None,
+):
+    if loader is None:
+        if loader_args is not None:
+            raise ValueError("loader_args must be None if loader is None")
 
-    script_dir = os.path.abspath(os.path.dirname(os.path.realpath(__file__)))
-    rules_file = os.path.join(script_dir, "rules.yaml")
-    with open(rules_file, "r") as f:
-        rules: dict[str, dict] = yaml.safe_load(f)
+        loader = from_tree_sitter_tree
+        loader_args = ["java"]
+    elif loader_args is None:
+        loader_args = []
 
-    for key, value in rules.items():
-        SEQUOIA_RULES[key] = Rules(
-            flattened=value["flattened"],
-            aliased=value["aliased"],
-            ignored=value["ignored"],
-        )
-
-
-setup_module()
-
-
-def get_tree_diff(language: str, old_ts_tree: Tree, new_ts_tree: Tree):
-    rules = SEQUOIA_RULES[language]
-
-    src: Node = Node.from_tree_sitter_tree(rules, old_ts_tree)
-    dst: Node = Node.from_tree_sitter_tree(rules, new_ts_tree)
+    src: Node = loader(old_tree, *loader_args)
+    dst: Node = loader(new_tree, *loader_args)
 
     mappings: MappingDict = generate_mappings(src, dst)
     edit_script: list[Action] = generate_simplified_chawathe_edit_script(
         mappings, src, dst
     )
 
-    # actual tree_sitter nodes
-    for e in edit_script:
-        e.node = e.node.ts_node
-        if isinstance(e, Insert) or isinstance(e, Move):
-            e.parent = e.parent.ts_node
-
     return edit_script
 
 
 __all__ = [
     "get_tree_diff",
-    "Action",
-    "Delete",
-    "Insert",
-    "MappingDict",
-    "Move",
-    "Node",
-    "Rules",
-    "Update",
 ]
