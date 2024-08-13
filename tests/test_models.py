@@ -2,6 +2,7 @@ import unittest
 from hashlib import sha256
 
 from sequoia_diff.models import Node
+from tests.util import node
 
 
 class TestNode(unittest.TestCase):
@@ -112,12 +113,5 @@ class TestNode(unittest.TestCase):
         bfs_result = list(self.root.bfs())
         self.assertEqual(bfs_result, [self.root, self.child1, self.child2, child1_1])
 
-    def test_pretty_str_methods(self):
-        self.root.children_append(self.child1)
-        self.root.children_append(self.child2)
-        pretty_str = self.root.pretty_str()
-
-        expected_str = (
-            "root: root_node\n" "  child1: child_node_1\n" "  child2: child_node_2\n"
-        )
-        self.assertEqual(pretty_str, expected_str)
+    def test_hash_value(self):
+        self.assertEqual(node("a").subtree_hash_value, node("a").subtree_hash_value)

@@ -1,0 +1,10 @@
+- insert_node:
+    node: constructor_declaration [87, 174]
+    parent: class_body [58, 151]
+    pos: 1
+- update_node:
+    node: identifier [73, 81]
+    label: property
+    value: changed
+- delete_node:
+    node: constructor_declaration [122, 147]

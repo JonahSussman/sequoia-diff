@@ -12,6 +12,10 @@ def get_tree_diff(
     loader: Optional[LoaderFunc] = None,
     loader_args: Optional[list[Any]] = None,
 ):
+    """
+    Produces the edit script in order to transform old_tree into new_tree.
+    """
+
     if loader is None:
         if loader_args is not None:
             raise ValueError("loader_args must be None if loader is None")
@@ -21,8 +25,8 @@ def get_tree_diff(
     elif loader_args is None:
         loader_args = []
 
-    src: Node = loader(old_tree, *loader_args)
-    dst: Node = loader(new_tree, *loader_args)
+    src = old_tree if isinstance(old_tree, Node) else loader(old_tree, *loader_args)
+    dst = new_tree if isinstance(new_tree, Node) else loader(new_tree, *loader_args)
 
     mappings: MappingDict = generate_mappings(src, dst)
     edit_script: list[Action] = generate_simplified_chawathe_edit_script(

@@ -1,5 +1,5 @@
 from collections import defaultdict
-from typing import Callable, TypeVar, cast
+from typing import Callable, Optional, TypeVar, cast
 
 from sequoia_diff.models import Action, Delete, Insert, MappingDict, Move, Node, Update
 
@@ -42,24 +42,27 @@ def lcs(
 
 
 def find_pos(dst_node: Node, dst_in_order: set[Node], mappings: MappingDict):
+    """
+    Finds the rightmost sibling of node that is to the left of node and is
+    marked in order. Returns the position immediately to the right of it.
+    """
     parent = dst_node.parent
     if parent is None:
         return 0
 
     siblings = parent.children
 
-    # If x is the leftmost child of its parent that is marked "in order", return
-    # 0
+    # If node is the leftmost child of its parent that is marked "in order",
+    # return 0
     for sibling in siblings:
         if sibling in dst_in_order:
             if sibling is dst_node:
-
                 return 0
             break
 
-    # Find the rightmost sibling of x that is to the left of x and is marked "in
-    # order"
-    rightmost_in_order_sibling: Node | None = None
+    # Find the rightmost sibling of node that is to the left of node and is
+    # marked "in order"
+    rightmost_in_order_sibling: Optional[Node] = None
     for i in range(dst_node.position_in_parent):
         sibling = siblings[i]
         if sibling in dst_in_order:
@@ -69,80 +72,85 @@ def find_pos(dst_node: Node, dst_in_order: set[Node], mappings: MappingDict):
         return 0
 
     u = mappings.dst_to_src[rightmost_in_order_sibling]
+    if u.parent is None:
+        return 0
+
     return u.position_in_parent + 1
 
 
 def align_children(
-    partner_node: Node,
-    current_node: Node,
+    src: Node,
+    dst: Node,
     src_in_order: set[Node],
     dst_in_order: set[Node],
-    cpy_mappings: MappingDict,
-    cpy_to_src: dict[Node, Node],
-) -> list[Action]:
+    mappings: MappingDict,
+) -> list[Move]:
     """
-    Statefully modify the tree and return a list of actions.
+    Statefully align the children of src and dst.
+
+    We say that the children of src and dst are misaligned if src has matched
+    children u and v such that u is to the left of v in src's tree but the
+    partner of u is to the right of the partner of v in dst's tree. If we find
+    that the children are misaligned, we generate Move operations to align the
+    children.
     """
 
-    actions: list[Action] = []
+    actions: list[Move] = []
 
-    # Mark all children of current_node and partner_node as "out of order"
-    for c in partner_node.children:
-        if c in src_in_order:
-            src_in_order.remove(c)
-    for c in current_node.children:
-        if c in dst_in_order:
-            dst_in_order.remove(c)
+    # Mark all children of src and dst as "out of order"
+    for child in src.children:
+        if child in src_in_order:
+            src_in_order.remove(child)
+    for child in dst.children:
+        if child in dst_in_order:
+            dst_in_order.remove(child)
 
-    # Children of partner_node whose partners are children of current_node
-    matched_partner_children: list[Node] = []
-    for c in partner_node.children:
-        if (
-            c in cpy_mappings.src_to_dst
-            and cpy_mappings.src_to_dst[c] in current_node.children
-        ):
-            matched_partner_children.append(c)
+    # Children of src whose partners are children of dst
+    matched_src_children: list[Node] = []
+    for child in src.children:
+        if mappings.src_to_dst.get(child) in dst.children:
+            matched_src_children.append(child)
 
-    # Children of current_node whose partners are children of partner_node
-    matched_current_children: list[Node] = []
-    for c in current_node.children:
-        if (
-            c in cpy_mappings.dst_to_src
-            and cpy_mappings.dst_to_src[c] in partner_node.children
-        ):
-            matched_current_children.append(c)
+    # Children of dst whose partners are children of src
+    matched_dst_children: list[Node] = []
+    for child in dst.children:
+        if mappings.dst_to_src.get(child) in src.children:
+            matched_dst_children.append(child)
 
+    # Find the longest common subsequence of matched_src_children and
+    # matched_dst_children. Basically, the aligned children.
     lcs_list = lcs(
-        matched_partner_children,
-        matched_current_children,
-        lambda a, b: a == cpy_mappings.dst_to_src[b],
+        matched_src_children,
+        matched_dst_children,
+        lambda a, b: a == mappings.dst_to_src[b],
     )
 
-    for m in lcs_list:
-        src_in_order.add(m[0])
-        dst_in_order.add(m[1])
+    for src_node, dst_node in lcs_list:
+        src_in_order.add(src_node)
+        dst_in_order.add(dst_node)
 
-    # Ensure left-to-right insertions by doing s2 first
-    for c in matched_current_children:
-        for p in matched_partner_children:
-            if not cpy_mappings.has(p, c):
+    # Ensure left-to-right insertions by doing matched_dst first
+    for dst_child in matched_dst_children:
+        for src_child in matched_src_children:
+            # Only consider mapped, misaligned children
+            if not mappings.has(src_child, dst_child):
                 continue
-            if (p, c) in lcs_list:
+            if (src_child, dst_child) in lcs_list:
                 continue
 
             # Append and apply move operation
 
-            # NOTE: Shouldn't happen
-            if p.parent is None:
+            if src_child.parent is None:  # NOTE: Shouldn't happen
                 raise ValueError("parent is None")
 
-            partner_node.children.remove(p)
-            position = find_pos(c, dst_in_order, cpy_mappings)
-            actions.append(Move(cpy_to_src[p], cpy_to_src[partner_node], position))
-            partner_node.children.insert(position, p)
+            src.children_remove(src_child)
+            position = find_pos(dst_child, dst_in_order, mappings)
 
-            src_in_order.add(p)
-            dst_in_order.add(c)
+            actions.append(Move(src_child, src, position))
+            src.children_insert(position, src_child)
+
+            src_in_order.add(src_child)
+            dst_in_order.add(dst_child)
 
     return actions
 
@@ -241,16 +249,16 @@ def generate_chawathe_edit_script(mappings: MappingDict, src: Node, dst: Node):
         src_in_order.add(partner_node)
         dst_in_order.add(current_node)
 
-        align_children_actions = align_children(
+        for move in align_children(
             partner_node,
             current_node,
             src_in_order,
             dst_in_order,
             cpy_mappings,
-            cpy_to_src,
-        )
-
-        actions.extend(align_children_actions)
+        ):
+            actions.append(
+                Move(cpy_to_src[move.node], cpy_to_src[move.parent], move.pos)
+            )
 
     for node in cpy_src.post_order():
         if node.type == "fake-type":

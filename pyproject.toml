@@ -10,7 +10,7 @@ readme = "README.md"
 requires-python = ">=3.11"
 classifiers = ["Programming Language :: Python :: 3"]
 dependencies = [
-  "tree-sitter==0.20.4",
+  "tree-sitter==0.22.3",
   "pydantic==2.8.2",
   "PyYAML==6.0.1",
   # "requests",
@@ -18,7 +18,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-test = ["coverage", "mypy", "types-PyYAML", "tree-sitter-java"]
+test = ["coverage", "mypy", "types-PyYAML", "tree-sitter-java==0.21.0"]
 
 [project.urls]
 Homepage = "https://github.com/JonahSussman/sequoia-diff"

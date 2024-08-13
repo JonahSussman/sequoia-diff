@@ -36,8 +36,13 @@ class Node:
         self.orig_node = orig_node
 
         # Fields modified through methods
-        self.children = children
-        self.parent = parent
+        self.children: list["Node"] = []
+        self.parent: Optional["Node"] = None
+
+        for child in children:
+            self.children_append(child)
+        if parent is not None:
+            self.set_parent(parent)
 
         # Lightweight statistics. Amortized O(1) time complexity
         self._needs_lightweight_recomputation: bool = True
@@ -65,6 +70,9 @@ class Node:
 
     def __lt__(self, other: "Node") -> bool:
         return (self.type, self.label) < (other.type, other.label)
+
+    def __repr__(self):
+        return f"Node(type={self.type}, label={self.label} at {hex(id(self))})"
 
     def deep_copy(self) -> "Node":
         result = Node(
@@ -95,15 +103,13 @@ class Node:
 
         self._hash_value = int(hasher.hexdigest(), 16)
 
-        for idx, child in enumerate(self.children):
+        for child in self.children:
             new_size += child.size
             new_height = max(new_height, child.height + 1)
-            child._position_in_parent = idx
             hasher.update(child.hash_value.to_bytes(32, "big"))
 
         self._size = new_size
         self._height = new_height
-        self._position_in_parent = -1
         self._subtree_hash_value = int(hasher.hexdigest(), 16)
 
         self._needs_lightweight_recomputation = False
@@ -161,8 +167,9 @@ class Node:
 
     @property
     def position_in_parent(self):
-        if self._needs_lightweight_recomputation:
-            self.recompute_lightweight_stats()
+        # FIXME: This should be recomputed only when needed.
+        self._position_in_parent = self.parent.children.index(self)
+
         return self._position_in_parent
 
     # Heavy statistics properties.
@@ -280,7 +287,7 @@ class Node:
         )
 
     def pretty_str_self(self) -> str:
-        return f"{self.type}{f': {self.label}' if self.label else ''}"
+        return f"{self.type}: {f'label={self.label}' if self.label else ''} subtree_hash={str(hex(self.subtree_hash_value))[:16]}"
 
 
 @dataclass

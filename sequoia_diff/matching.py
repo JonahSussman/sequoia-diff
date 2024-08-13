@@ -61,9 +61,9 @@ def match_greedy_top_down(mappings: MappingDict, src: Node, dst: Node):
 
         # Utilize the hash function to determine of two nodes are isomorphic
         for node in src_nodes:
-            local_mappings[hash(node)][0].add(node)
+            local_mappings[node.subtree_hash_value][0].add(node)
         for node in dst_nodes:
-            local_mappings[hash(node)][1].add(node)
+            local_mappings[node.subtree_hash_value][1].add(node)
 
         for _, local_set in local_mappings.items():
             src_set, dst_set = local_set

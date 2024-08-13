@@ -3,7 +3,11 @@ import os
 import tree_sitter_java
 from tree_sitter import Language, Parser
 
+from sequoia_diff.models import Node
+
 PATH_TESTS = os.path.dirname(os.path.abspath(__file__))
+
+PATH_DATA = os.path.join(PATH_TESTS, "data")
 
 TS_LANGUAGE_JAVA = Language(tree_sitter_java.language())
 
@@ -24,3 +28,9 @@ def read_and_parse_tree(parser_or_language: Language | Parser, file_path: str):
     tree = parser.parse(bytes(file_contents, "utf-8"))
 
     return tree
+
+
+# TODO: Evaluate just using the regular Node constructor and supply label or
+# type if one is missing.
+def node(label_and_type: str, **kwargs):
+    return Node(label=label_and_type, type=label_and_type, **kwargs)
