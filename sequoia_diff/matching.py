@@ -154,8 +154,8 @@ def match_rted(mappings: MappingDict, src: Node, dst: Node):
     zs_src = RTEDTree(src)
     zs_dst = RTEDTree(dst)
 
-    tree_dist = [[0] * (zs_dst.size + 1) for _ in range(zs_src.size + 1)]
-    forest_dist = [[0] * (zs_dst.size + 1) for _ in range(zs_src.size + 1)]
+    tree_dist = [[0.0] * (zs_dst.size + 1) for _ in range(zs_src.size + 1)]
+    forest_dist = [[0.0] * (zs_dst.size + 1) for _ in range(zs_src.size + 1)]
 
     def get_update_cost(a: Node, b: Node):
         if a.type != b.type:

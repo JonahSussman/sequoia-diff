@@ -29,7 +29,9 @@ def from_tree_sitter_node(
     else:  # isinstance(language_or_rules, LanguageRules)
         rules = language_or_rules
 
-    if (ts_node.child_count == 0) or (ts_node.type in rules.flattened):
+    if ((ts_node.child_count == 0) or (ts_node.type in rules.flattened)) and (
+        ts_node.text is not None
+    ):
         label = ts_node.text.decode("utf-8")
     else:
         label = None

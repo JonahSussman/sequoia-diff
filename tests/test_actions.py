@@ -6,7 +6,7 @@ from sequoia_diff.actions import (
     generate_simplified_chawathe_edit_script,
     lcs,
 )
-from sequoia_diff.models import MappingDict, Move, Node
+from sequoia_diff.models import Action, MappingDict, Move, Node
 from tests.util import node
 
 
@@ -38,10 +38,10 @@ class TestAlignChildren(unittest.TestCase):
         dst = node("dst")
 
         mappings = MappingDict()
-        src_in_order = set()
-        dst_in_order = set()
+        src_in_order: set[Node] = set()
+        dst_in_order: set[Node] = set()
 
-        expected_actions = []
+        expected_actions: list[Action] = []
         actions = align_children(src, dst, src_in_order, dst_in_order, mappings)
         self.assertEqual(actions, expected_actions)
 
@@ -57,7 +57,7 @@ class TestAlignChildren(unittest.TestCase):
         src_in_order = set(src.children)
         dst_in_order = set(dst.children)
 
-        expected_actions = []
+        expected_actions: list[Action] = []
         actions = align_children(src, dst, src_in_order, dst_in_order, mappings)
         self.assertEqual(actions, expected_actions)
 
@@ -87,7 +87,8 @@ class TestAlignChildren(unittest.TestCase):
         mappings.put(src.children[2], dst.children[0])
         mappings.put(src.children[3], dst.children[2])
 
-        src_in_order, dst_in_order = set(), set()
+        src_in_order: set[Node] = set()
+        dst_in_order: set[Node] = set()
 
         expected_actions = [
             Move(node=src.children[0], parent=src, pos=2),
@@ -100,7 +101,7 @@ class TestAlignChildren(unittest.TestCase):
 class TestFindPos(unittest.TestCase):
     def test_node_with_no_parent(self):
         a = node("node")
-        in_order = set()
+        in_order: set[Node] = set()
         mappings = MappingDict()
 
         result = find_pos(a, in_order, mappings)
@@ -116,7 +117,7 @@ class TestFindPos(unittest.TestCase):
 
     def test_no_siblings_in_order(self):
         parent = node("parent", children=[node("a"), node("b")])
-        in_order = set()
+        in_order: set[Node] = set()
         mappings = MappingDict()
 
         result = find_pos(parent.children[0], in_order, mappings)
@@ -139,7 +140,7 @@ class TestFindPos(unittest.TestCase):
     def test_no_siblings_to_the_left(self):
         # Test case where the node has no siblings to the left (should return 0)
         parent = node("parent", children=[node("node")])
-        in_order = set()
+        in_order: set[Node] = set()
         mappings = MappingDict()
 
         result = find_pos(parent.children[0], in_order, mappings)

@@ -179,8 +179,6 @@ class TestGetTreeAndAdjacent(unittest.TestCase):
         # mappings.put(src.children[0], dst.children[0])
         # mappings.put(src.children[1], dst.children[2])
 
-        src_in_order, dst_in_order = set(), set()
-
         mappings = MappingDict()
         match_greedy_top_down(mappings, src, dst)
         self.assertEqual(list(mappings.items()), [])

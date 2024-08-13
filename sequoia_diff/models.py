@@ -168,7 +168,10 @@ class Node:
     @property
     def position_in_parent(self):
         # FIXME: This should be recomputed only when needed.
-        self._position_in_parent = self.parent.children.index(self)
+        if self.parent is None:
+            self._position_in_parent = -1
+        else:
+            self._position_in_parent = self.parent.children.index(self)
 
         return self._position_in_parent
 
