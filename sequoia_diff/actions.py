@@ -148,6 +148,12 @@ def align_children(
 
 
 def generate_chawathe_edit_script(mappings: MappingDict, src: Node, dst: Node):
+    """
+    Perform the Chawathe algorithm to generate an edit script.
+
+    https://doi.org/10.1145/235968.233366
+    """
+
     # Create a copy of src to work with. We could technically create a copy of
     # dst, but we never modify it (aside from setting a fake parent), so it's
     # not necessary.
@@ -165,7 +171,7 @@ def generate_chawathe_edit_script(mappings: MappingDict, src: Node, dst: Node):
         src_to_cpy[src_node] = cpy_node
         cpy_to_src[cpy_node] = src_node
 
-    for src_node, dst_node in mappings.src_to_dst.items():
+    for src_node, dst_node in mappings.items():
         cpy_mappings.put(src_to_cpy[src_node], dst_node)
 
     # Create "fake roots" (sentinel nodes) to make things easier
@@ -173,8 +179,10 @@ def generate_chawathe_edit_script(mappings: MappingDict, src: Node, dst: Node):
 
     new_cpy_src_parent = fake_node()
     cpy_src.set_parent(new_cpy_src_parent)
+
     new_dst_parent = fake_node()
     dst.set_parent(new_dst_parent)
+
     cpy_mappings.put(new_cpy_src_parent, new_dst_parent)
 
     actions: list[Action] = []

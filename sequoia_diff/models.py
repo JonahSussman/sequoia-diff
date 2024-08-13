@@ -16,6 +16,9 @@ class LanguageRuleSet(RootModel[dict[str, LanguageRules]]):
     root: dict[str, LanguageRules] = Field(..., title="LanguageRuleSet")
 
 
+# TODO: Somehow add typing for orig_node. You could add a type parameter to
+# Node, it's entirely possible that the parent or child of a Node could have a
+# different type for orig_node. Thus, it would only work for one layer.
 class Node:
     def __init__(
         self,
@@ -44,9 +47,10 @@ class Node:
         self._hash_value: int = -1
         self._subtree_hash_value: int = -1
 
+        # TODO: Implement heavy statistics
+
         # Heavy statistics. O(n) as it requires going through entire tree
 
-        # TODO: Implement
         # self._dsu_parent: "Node" = parent if parent else self
 
         # self._idx_pre_ltr: int = -1
@@ -58,6 +62,9 @@ class Node:
 
     def __hash__(self):
         return self.hash_value
+
+    def __lt__(self, other: "Node") -> bool:
+        return (self.type, self.label) < (other.type, other.label)
 
     def deep_copy(self) -> "Node":
         result = Node(
@@ -235,7 +242,7 @@ class Node:
 
     # Traversal generators
 
-    def pre_order(self, skip_self=False, rtl=False):
+    def pre_order(self, skip_self=False, rtl=False) -> Iterator["Node"]:
         if not skip_self:
             yield self
 
@@ -246,7 +253,7 @@ class Node:
             for child in reversed(self.children):
                 yield from child.pre_order()
 
-    def post_order(self, skip_self=False, rtl=False):
+    def post_order(self, skip_self=False, rtl=False) -> Iterator["Node"]:
         if not rtl:
             for child in self.children:
                 yield from child.post_order()
@@ -278,14 +285,14 @@ class Node:
 
 @dataclass
 class MappingDict:
-    src_to_dst: dict[Node, Node] = field(default_factory=lambda: dict())
-    dst_to_src: dict[Node, Node] = field(default_factory=lambda: dict())
+    src_to_dst: dict[Node, Node] = field(default_factory=dict)
+    dst_to_src: dict[Node, Node] = field(default_factory=dict)
 
     def __len__(self):
         return len(self.src_to_dst)
 
     def __iter__(self):
-        for src, dst in self.src_to_dst.items():
+        for src, dst in self.items():
             yield (src, dst)
 
     def put(self, src: Node, dst: Node):
@@ -306,6 +313,12 @@ class MappingDict:
             return False
 
         return self.src_to_dst[src] is dst
+
+    def items(self, dst_to_src: bool = False):
+        if dst_to_src:
+            return self.dst_to_src.items()
+
+        return self.src_to_dst.items()
 
     def are_srcs_unmapped(self, srcs: list[Node]):
         return all(src not in self.src_to_dst for src in srcs)
@@ -329,13 +342,25 @@ class MappingDict:
 
 @dataclass
 class NodePriorityQueue:
+    """
+    A priority queue for nodes. The priority is the height of the node, with
+    larger heights being towards the front of the queue.
+    """
+
     min_height: int = 1
     queue: list[tuple[int, Node]] = field(default_factory=list)
 
-    def empty(self):
+    def is_empty(self):
+        """
+        Returns if the queue is empty.
+        """
         return len(self.queue) == 0
 
     def push(self, node: Node):
+        """
+        Push an element into the queue. If the height of the node is less than
+        the minimum height, the node is not pushed.
+        """
         if node.height < self.min_height:
             return
         heapq.heappush(self.queue, (-node.height, node))
@@ -348,23 +373,35 @@ class NodePriorityQueue:
             self.push(child)
 
     def pop(self):
+        """
+        Pop the front element of the queue.
+        """
         return heapq.heappop(self.queue)
 
     def pop_equal_priority(self) -> tuple[Optional[int], list[Node]]:
-        if self.empty():
+        """
+        Pop all elements at the front of the queue that have the same priority.
+        """
+        if self.is_empty():
             return None, list[Node]()
 
         priority, node = heapq.heappop(self.queue)
         result = [node]
-        while not self.empty() and self.queue[0][0] == priority:
+        while not self.is_empty() and self.queue[0][0] == priority:
             result.append(heapq.heappop(self.queue)[1])
 
         return priority, result
 
     def clear(self):
+        """
+        Remove all items from the queue.
+        """
         self.queue.clear()
 
     def curr_priority(self):
+        """
+        Returns the priority of the front element of the queue.
+        """
         return self.queue[0][0]
 
     def synchronize_and_push_children(self, other: "NodePriorityQueue") -> bool:
@@ -372,7 +409,7 @@ class NodePriorityQueue:
         Special method that "unwinds" the queue, popping nodes and pushing their
         children until the priorities of the two queues match.
         """
-        while not (self.empty() or other.empty()) and (
+        while not (self.is_empty() or other.is_empty()) and (
             self.curr_priority() != other.curr_priority()
         ):
             if self.curr_priority() > other.curr_priority():
@@ -382,7 +419,7 @@ class NodePriorityQueue:
                 for node in other.pop_equal_priority()[1]:
                     self.push_children(node)
 
-        if self.empty() or other.empty():
+        if self.is_empty() or other.is_empty():
             self.clear()
             other.clear()
             return False

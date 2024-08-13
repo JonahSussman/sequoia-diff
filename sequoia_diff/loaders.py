@@ -4,12 +4,11 @@ from typing import Callable, Optional
 import tree_sitter as ts
 import yaml
 
-from sequoia_diff import Node
-from sequoia_diff.models import LanguageRules, LanguageRuleSet
+from sequoia_diff.models import LanguageRules, LanguageRuleSet, Node
 
 LoaderFunc = Callable[..., Node]
 
-RULES_PATH = os.path.join(os.path.dirname(__file__), "rules.yaml")
+PATH_TS_RULES = os.path.join(os.path.dirname(__file__), "rules.yaml")
 
 
 def from_tree_sitter_node(
@@ -20,7 +19,7 @@ def from_tree_sitter_node(
     elif isinstance(language_or_rules, str):
         language = language_or_rules
 
-        with open(RULES_PATH, "r") as f:
+        with open(PATH_TS_RULES, "r") as f:
             rule_set = LanguageRuleSet.model_validate(yaml.safe_load(f.read()))
 
         root_rules = rule_set.root.get(language)

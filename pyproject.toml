@@ -17,6 +17,9 @@ dependencies = [
   # 'importlib-metadata; python_version<"3.10"',
 ]
 
+[project.optional-dependencies]
+test = ["coverage", "mypy", "types-PyYAML", "tree-sitter-java"]
+
 [project.urls]
 Homepage = "https://github.com/JonahSussman/sequoia-diff"
 Issues = "https://github.com/JonahSussman/sequoia-diff/issues"

@@ -12,9 +12,9 @@ class TestAlignChildren(unittest.TestCase):
         t1.children_append(a1)
         t1.children_append(b1)
 
-        t2 = Node(type="t2", label="t2")
-        b2 = Node(type="b2", label="b2")
-        a2 = Node(type="a2", label="a2")
+        t2 = Node(type="t1", label="t1")
+        b2 = Node(type="b1", label="b1")
+        a2 = Node(type="a1", label="a1")
         t2.children_append(b2)
         t2.children_append(a2)
 
@@ -24,6 +24,8 @@ class TestAlignChildren(unittest.TestCase):
         mapping.put(b1, b2)
 
         actions = generate_simplified_chawathe_edit_script(mapping, t1, t2)
+
+        print(actions)
 
         self.assertEqual(len(actions), 1)
         self.assertTrue(isinstance(actions[0], Move))

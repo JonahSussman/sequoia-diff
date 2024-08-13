@@ -10,24 +10,27 @@ MatchingFunc = Callable[[MappingDict, Node, Node], MappingDict]
 
 
 def number_of_mapped_descendants(mappings: MappingDict, src: Node, dst: Node):
-    dst_descendants: set[Node] = set()
-    for node in dst.pre_order(skip_self=True):
-        dst_descendants.add(node)
+    """
+    Returns the number of descendants of src that are mapped to descendants of
+    dst.
+    """
+    dst_descendants = set(node for node in dst.pre_order(skip_self=True))
 
-    mapped_descendants: int = 0
-
+    result = 0
     for node in src.pre_order(skip_self=True):
-        if node not in mappings.src_to_dst:
-            continue
+        if mappings.src_to_dst.get(node) in dst_descendants:
+            result += 1
 
-        dst_for_src_descendant = mappings.src_to_dst[node]
-        if dst_for_src_descendant in dst_descendants:
-            mapped_descendants += 1
-
-    return mapped_descendants
+    return result
 
 
 def dice_similarity(mappings: MappingDict, src: Node, dst: Node) -> float:
+    """
+    The Dice similarity coefficient is a statistic used to gauge the similarity
+    between two samples. Originally defined as `2*|A ∩ B| / (|A| + |B|)`.
+
+    https://en.wikipedia.org/wiki/Dice-S%C3%B8rensen_coefficient
+    """
     common = number_of_mapped_descendants(mappings, src, dst)
     return 2.0 * common / (src.size + dst.size)
 
@@ -35,6 +38,8 @@ def dice_similarity(mappings: MappingDict, src: Node, dst: Node) -> float:
 def match_greedy_top_down(mappings: MappingDict, src: Node, dst: Node):
     """
     Map the common subtrees of src and dst with the greatest height possible.
+
+    https://dl.acm.org/doi/10.1145/2642937.2642982
     """
 
     ambiguous_mappings: list[tuple[set[Node], set[Node]]] = []
@@ -94,65 +99,63 @@ def match_greedy_top_down(mappings: MappingDict, src: Node, dst: Node):
 
 class RTEDTree:
     """
-    https://arxiv.org/pdf/1201.0230
+    Data structure for use in the RTED algorithm. It mainly takes care of
+    finding the leftmost leaf descendants of each node.
 
-    TODO: Clean up and implement APTED algorithm
-    https://github.com/DatabaseGroup/apted
+    https://arxiv.org/abs/1201.0230
+
+    TODO: Clean up (lots of weird 1-indexed stuff) and implement APTED algorithm
     """
 
     def __init__(self, node: Node):
-        self.node_count = node.size
+        self.size = node.size
         self.leaf_count = 0
-        self.leftmost_leaf_desc: list[int] = [0] * self.node_count
-        self.labels: list[Optional[Node]] = [None] * self.node_count
+        self.leftmost_leaf_descendant: list[int] = [0] * self.size
+        self.nodes = [n for n in node.post_order()]
 
-        idx: int = 1
-        tmp_data: dict[Node, int] = {}
-        for n in node.post_order():
-            tmp_data[n] = idx
-            self.labels[idx - 1] = n
+        node_to_idx: dict[Node, int] = {}
+        for idx, n in enumerate(node.post_order(), 1):
+            node_to_idx[n] = idx
+            self.nodes[idx - 1] = n
 
             leaf = n
             while len(leaf.children) != 0:
                 leaf = leaf.children[0]
 
-            self.leftmost_leaf_desc[idx - 1] = tmp_data[leaf] - 1
+            self.leftmost_leaf_descendant[idx - 1] = node_to_idx[leaf] - 1
             if len(n.children) == 0:
                 self.leaf_count += 1
 
-            idx += 1
-
         self.key_roots: list[int] = [0] * (self.leaf_count + 1)
-        visited: list[bool] = [False] * (self.node_count + 1)
-        k = len(self.key_roots) - 1
+        visited: list[bool] = [False] * (self.size + 1)
+        j = len(self.key_roots) - 1
 
-        i = self.node_count
-        while i >= 1:
+        for i in range(self.size, 0, -1):
             if not visited[self.lld(i)]:
-                self.key_roots[k] = i
+                self.key_roots[j] = i
                 visited[self.lld(i)] = True
-                k -= 1
-            i -= 1
+                j -= 1
 
-    def lld(self, i):
-        return self.leftmost_leaf_desc[i - 1] + 1
+    def lld(self, i: int) -> int:
+        return self.leftmost_leaf_descendant[i - 1] + 1
 
-    def tree(self, i):
-        return self.labels[i - 1]
+    def tree(self, i: int) -> Node:
+        return self.nodes[i - 1]
 
 
 def match_rted(mappings: MappingDict, src: Node, dst: Node):
     """
-    https://arxiv.org/pdf/1201.0230
+    RTED algorithm for tree edit distance.
 
-    TODO: Clean up and implement APTED algorithm
-    https://github.com/DatabaseGroup/apted
+    https://arxiv.org/abs/1201.0230
+
+    TODO: Clean up (lots of weird 1-indexed stuff) and implement APTED algorithm
     """
     zs_src = RTEDTree(src)
     zs_dst = RTEDTree(dst)
 
-    tree_dist = [[0] * (zs_dst.node_count + 1) for i in range(zs_src.node_count + 1)]
-    forest_dist = [[0] * (zs_dst.node_count + 1) for i in range(zs_src.node_count + 1)]
+    tree_dist = [[0] * (zs_dst.size + 1) for _ in range(zs_src.size + 1)]
+    forest_dist = [[0] * (zs_dst.size + 1) for _ in range(zs_src.size + 1)]
 
     def get_update_cost(a: Node, b: Node):
         if a.type != b.type:
@@ -208,7 +211,7 @@ def match_rted(mappings: MappingDict, src: Node, dst: Node):
 
     root_node_pair = True
     tree_pairs: list[tuple[int, int]] = []
-    tree_pairs.append((zs_src.node_count, zs_dst.node_count))
+    tree_pairs.append((zs_src.size, zs_dst.size))
 
     while len(tree_pairs) > 0:
         last_row, last_col = tree_pairs.pop(0)
@@ -252,6 +255,18 @@ def match_rted(mappings: MappingDict, src: Node, dst: Node):
 
 
 def match_last_chance(mappings: MappingDict, a: Node, b: Node):
+    """
+    Use the RTED algorithm to match the remaining nodes. Technically, any
+    matching algorithm that does not produce Move edit actions will work.
+
+    The best known algorithm with add, delete and update actions has a O(n^3)
+    time complexity with n being the number of nodes of the AST [1]. Computing
+    the minimum edit script that can include move node actions is known to be
+    NP-hard [2].
+
+    [1]: https://arxiv.org/abs/1201.0230
+    [2]: https://doi.org/10.1016/j.tcs.2004.12.030
+    """
     SIZE_THRESHOLD = 1000
     if a.size >= SIZE_THRESHOLD and b.size >= SIZE_THRESHOLD:
         return
@@ -259,36 +274,48 @@ def match_last_chance(mappings: MappingDict, a: Node, b: Node):
     zs_mappings = MappingDict()
     match_rted(zs_mappings, a, b)
 
-    for src_cand, dst_cand in zs_mappings.src_to_dst.items():
+    for src_cand, dst_cand in zs_mappings.items():
         if mappings.is_mapping_allowed(src_cand, dst_cand):
             mappings.put(src_cand, dst_cand)
 
 
-def get_dst_candidates(mappings: MappingDict, a: Node):
-    seeds: list[Node] = []
+def get_dst_candidates(mappings: MappingDict, src: Node) -> list[Node]:
+    """
+    Get dst candidates. Look for dst nodes that are already mapped and then
+    recursively look at their parents. They become a candidate if:
+    - Have the same type as src
+    - Are not the root node
+    - Are not already mapped
+    """
+    dst_seeds: list[Node] = []
+    for node in src.pre_order(skip_self=True):
+        if node in mappings.src_to_dst:
+            dst_seeds.append(mappings.src_to_dst[node])
+
     candidates: list[Node] = []
     visited: set[Node] = set()
 
-    for node in a.pre_order(skip_self=True):
-        if node in mappings.src_to_dst:
-            seeds.append(mappings.src_to_dst[node])
-
-    for seed in seeds:
-        while seed.parent is not None:
-            parent = seed.parent
+    for dst_seed in dst_seeds:
+        while dst_seed.parent is not None:
+            parent = dst_seed.parent
             if parent in visited:
                 break
+
             visited.add(parent)
-            if parent.type == a.type and not (
-                parent in mappings.dst_to_src or parent.parent is None
+            if parent.type == src.type and not (
+                parent.parent is None or parent in mappings.dst_to_src
             ):
                 candidates.append(parent)
-            seed = parent
+
+            dst_seed = parent
 
     return candidates
 
 
 def match_greedy_bottom_up(mappings: MappingDict, src: Node, dst: Node):
+    """
+    https://dl.acm.org/doi/10.1145/2642937.2642982
+    """
     SIM_THRESHOLD = 0.5
 
     for node in src.post_order():
@@ -317,11 +344,6 @@ def match_greedy_bottom_up(mappings: MappingDict, src: Node, dst: Node):
 
 def match_chawathe_fast(mappings: MappingDict, src: Node, dst: Node):
     """
-    S. S. Chawathe, A. Rajaraman, H. Garcia-Molina, and J. Widom. Change
-    detection in hierarchically structured information. In Proceedings of the
-    1996 International Conference on Management of Data, pages 493–504. ACM
-    Press, 1996.
-
     1. M <- phi
     2. For each leaf label l do
         a. S1 <- chain_T1(l)
@@ -333,6 +355,8 @@ def match_chawathe_fast(mappings: MappingDict, src: Node, dst: Node):
             i. Add (x, y) to M
             ii. Mark x and y "matched"
     3. Repeat steps 2a-2e for each internal node label l.
+
+    https://dl.acm.org/doi/10.1145/235968.233366
     """
 
     raise NotImplementedError()
@@ -342,7 +366,7 @@ def generate_mappings(
     src: Node,
     dst: Node,
     funcs: list[MatchingFunc] | None = None,
-):
+) -> MappingDict:
     """
     Establish mappings between similar nodes of the two trees.
 
@@ -355,7 +379,7 @@ def generate_mappings(
         funcs = [match_greedy_top_down, match_greedy_bottom_up]
 
     mappings = MappingDict()
-    for f in funcs:
-        f(mappings, src, dst)
+    for func in funcs:
+        func(mappings, src, dst)
 
     return mappings
