@@ -1,0 +1,238 @@
+from typing import NamedTuple
+
+from kai.service.solution_handling.detection.line_match.models import MappingDict, Node
+
+
+class APTEDCost(NamedTuple):
+    l: float = 0.0
+    r: float = 0.0
+    i: float = 0.0
+    path: float = 0.0
+
+def update_parent_l(min_cost: float, node: Node, cost: APTEDCost, parent_cost: APTEDCost):
+    update_path = None
+    parent_cost.r += min_cost
+    tmp_cost = -min_cost + cost.i
+    if tmp_cost < parent_cost.i:
+        parent_cost.i = tmp_cost
+        update_path = parent_cost.path = cost.path
+    if node.lies_on_rightmost_path:
+        parent_cost.i += parent_cost.r
+        parent_cost.r += cost.r - min_cost
+    if node.lies_on_leftmost_path:
+        parent_cost.l += cost.l
+    else:
+        parent_cost.l += min_cost
+
+    return update_path
+
+def update_parent_r(min_cost: float, node: Node, cost:APTEDCost, parent_cost: APTEDCost):
+    """Update parent cost according to node cost and min_cost"""
+    update_path = None
+    parent_cost.l += min_cost
+    tmp_cost = -min_cost + cost.i
+    if tmp_cost < parent_cost.i:
+        parent_cost.i = tmp_cost
+        update_path = parent_cost.path = cost.path
+    if node.lies_on_leftmost_path:
+        parent_cost.i += parent_cost.l
+        parent_cost.l += cost.l - min_cost
+    if node.lies_on_rightmost_path:
+        parent_cost.r += cost.r
+    else:
+        parent_cost.r += min_cost
+
+def match_apted(mappings: MappingDict, src: Node, dst: Node):
+    # The distance matrix [1, Sections 3.4,8.2,8.3]
+    # Used to store intermediate distances between pairs of subtrees
+    delta = []
+
+    # Stores the number of sub-problems encountered while computing the
+    # distance. See [1, Section 10].
+    counter = 0
+
+    # compute_edit_distance
+
+    src_leftmost_children = 0
+    src_rightmost_children = 0
+    for src_node in src.pre_order():
+        if len(src_node.children) != 0:
+            continue
+
+        parent = src_node.parent
+        if parent is None:
+            continue
+
+        if parent.children[0] == src_node:
+            src_leftmost_children += 1
+        if parent.children[-1] == src_node:
+            src_rightmost_children += 1
+
+
+    if src_leftmost_children < src_rightmost_children:
+        # compute_opt_strategy_post_l
+        order1 = src.post_order(rtl=False)
+        order2 = dst.post_order(rtl=False)
+        cost_index = lambda node: node.idx_post_ltr
+        update_parent = update_parent_l
+
+        
+    else:
+        # compute_opt_strategy_post_r
+        order1 = src.post_order(rtl=True)
+        order2 = dst.post_order(rtl=True)
+        cost_index = lambda node: node.idx_post_rtl
+        update_parent = update_parent_r
+
+    # compute opt_strategy_post
+
+    strategy = [
+        [0 for _ in range(dst.size)]
+        for _ in range(src.size)
+    ]
+
+    cost_src = [None for _ in range(src.size)]
+    leaf_row = [APTEDCost() for _ in range(dst.size)]
+
+    path_id_offset = src.size
+    min_cost = float("inf")
+    strategy_path = -1
+
+    rows_to_reuse = []
+
+    for node1 in order1:
+        v_cost = cost_index(src_node)
+        v_in_pre_ltr = node1.idx_pre_ltr
+
+        strategy_v = strategy[v_in_pre_ltr]
+
+        parent1 = node1.parent
+        size_v = node1.size
+        kr_sum_v = node1.kr_sum
+        rev_kr_sum_v = node1.rev_kr_sum
+        desc_sum_v = node1.desc_sum
+
+
+
+    ted_init()
+    result = gted()
+
+    # compute_edit_mapping
+
+"""
+
+class Tree:
+    pass
+
+class Forest:
+    pass
+
+class NNode:
+    pass
+
+
+def cost_del(F: Tree | Forest, v: NNode):
+    return 1
+
+def cost_ins(G: Tree | Forest, w: NNode):
+    return 1
+
+def cost_rename(F: Tree, v: NNode, G: Tree, w: NNode):
+    return 1
+
+
+# recursive formula for tree edit distance
+def rted_recursive(F: Tree | Forest | None, G: Tree | Forest | None):
+    if F is None and G is None:
+        return 0
+    
+    if F is not None:
+        v = F.get_leftmost_root() if isinstance(F, Forest) else F.get_root()
+    if G is not None:
+        w = G.get_leftmost_root() if isinstance(G, Forest) else G.get_root()
+
+    if G is None:
+        return rted_recursive(F.subtract_node(v), None) + cost_del(F, v)
+    if F is None:
+        return rted_recursive(None, G.subtract_node(w)) + cost_ins(G, w)
+    
+    if not isinstance(F, Tree) or not isinstance(G, Tree):
+        return min(
+            rted_recursive(F.subtract_node(v), G) + cost_del(F, v),
+            rted_recursive(F, G.subtract_node(w)) + cost_ins(G, w),
+            rted_recursive(v, w) + rted_recursive(F.subtract_subtree(v), G.subtract_subtree(w))
+        )
+    else:
+        return min(
+            rted_recursive(F.subtract_node(v), G) + cost_del(F, v),
+            rted_recursive(F, G.subtract_node(w)) + cost_ins(G, w),
+            rted_recursive(F.subtract_node(v), G.subtract_node(w)) + cost_rename(F, v, G, w)
+        )
+
+gamma_star = MagicMock()
+gamma_L = MagicMock()
+gamma_R = MagicMock()
+DELTA_L = MagicMock()
+DELTA_R = MagicMock()
+DELTA_I = MagicMock()
+
+def gted(F, G, S, D):
+    # https://arxiv.org/pdf/1201.0230
+
+    gamma = S(F, G)
+    if gamma in gamma_star(F): # the set of all root-leaf paths in F
+        for F_prime in F - gamma:
+            D = D.union(gted(F_prime, G, S, D))
+        
+        if gamma == gamma_L(F):
+            DELTA = DELTA_L
+        elif gamma == gamma_R(F):
+            DELTA = DELTA_R
+        else:
+            DELTA = DELTA_I
+
+        D = D.union(DELTA(F, G, gamma, D))
+    else:
+        D = D.union(gted(G, F, S.transpose(), D.transpose()).transpose())
+
+    return D
+
+
+
+def match_apted(mappings: MappingDict, src: Node, dst: Node):
+    # Distance matrix
+    # Used to store intermediate distances between pairs of subtrees
+    delta = []
+
+    # Stores the number of sub-problems encountered while computing the
+    # distance.
+    counter = 0
+
+    # src_pre_ltr = [x for x in src.pre_order()]
+    # src_post_ltr = [x for x in src.post_order()]
+    # src_pre_rtl = [x for x in src.pre_order(rtl=True)]
+    # src_post_rtl = [x for x in src.post_order(rtl=True)]
+
+    src_leftmost_children = 0
+    src_rightmost_children = 0
+    for src_node in src.pre_order():
+        if len(src_node.children) != 0:
+            continue
+
+        parent = src_node.parent
+        if parent is None:
+            continue
+
+        if parent.children[0] == src_node:
+            src_leftmost_children += 1
+        if parent.children[-1] == src_node:
+            src_rightmost_children += 1
+
+    if src_leftmost_children < src_rightmost_children:
+        delta = compute_opt_strategy_post_l()
+    else:
+        delta = compute_opt_strategy_post_r()
+
+    delta = delta
+    counter = counter
+"""

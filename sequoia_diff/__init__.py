@@ -1,48 +1,41 @@
-import os
-import yaml
-from collections import defaultdict
+from typing import Any, Optional
 
-from tree_sitter import Tree
-
-from sequoia_diff.types import Rules, Node, MappingDict, Action
-from sequoia_diff.types import Insert, Update, Move, Delete
-from sequoia_diff.matching import generate_mappings
 from sequoia_diff.actions import generate_simplified_chawathe_edit_script
+from sequoia_diff.loaders import LoaderFunc, from_tree_sitter_tree
+from sequoia_diff.matching import generate_mappings
+from sequoia_diff.models import Action, MappingDict, Node
 
-SEQUOIA_RULES = defaultdict(
-  lambda: Rules([], {}, [])
-)
 
-def setup_module():
-  global SEQUOIA_RULES
+def get_tree_diff(
+    old_tree: Any,
+    new_tree: Any,
+    loader: Optional[LoaderFunc] = None,
+    loader_args: Optional[list[Any]] = None,
+):
+    """
+    Produces the edit script in order to transform old_tree into new_tree.
+    """
 
-  script_dir = os.path.abspath(os.path.dirname(os.path.realpath(__file__)))
-  rules_file = os.path.join(script_dir, "rules.yaml")
-  with open(rules_file, 'r') as f:
-    rules: dict[str, dict] = yaml.safe_load(f)
-  
-  for key, value in rules.items():
-    SEQUOIA_RULES[key] = Rules(
-      flattened=value['flattened'],
-      aliased=value['aliased'],
-      ignored=value['ignored'],
+    if loader is None:
+        if loader_args is not None:
+            raise ValueError("loader_args must be None if loader is None")
+
+        loader = from_tree_sitter_tree
+        loader_args = ["java"]
+    elif loader_args is None:
+        loader_args = []
+
+    src = old_tree if isinstance(old_tree, Node) else loader(old_tree, *loader_args)
+    dst = new_tree if isinstance(new_tree, Node) else loader(new_tree, *loader_args)
+
+    mappings: MappingDict = generate_mappings(src, dst)
+    edit_script: list[Action] = generate_simplified_chawathe_edit_script(
+        mappings, src, dst
     )
 
-setup_module()
+    return edit_script
 
-def get_tree_diff(language: str, old_ts_tree: Tree, new_ts_tree: Tree):
-  rules = SEQUOIA_RULES[language]
 
-  src: Node = Node.from_tree_sitter_tree(rules, old_ts_tree)
-  dst: Node = Node.from_tree_sitter_tree(rules, new_ts_tree)
-
-  mappings: MappingDict = generate_mappings(src, dst)
-  edit_script: list[Action] = generate_simplified_chawathe_edit_script(mappings, src, dst)
-
-  # actual tree_sitter nodes
-  for e in edit_script:
-    e.node = e.node.ts_node
-    if isinstance(e, Insert) or isinstance(e, Move):
-      e.parent = e.parent.ts_node
-
-  return edit_script
+__all__ = [
+    "get_tree_diff",
+]

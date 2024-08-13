@@ -4,20 +4,21 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "sequoia_diff"
-version = "0.0.1"
-authors = [
-  { name="Jonah Sussman", email="jsussman@redhat.com" }
-]
+version = "0.0.2"
+authors = [{ name = "Jonah Sussman", email = "sussmanjonah@gmail.com" }]
 readme = "README.md"
-requires-python = ">=3.10"
-classifiers = [
-  "Programming Language :: Python :: 3"
-]
+requires-python = ">=3.11"
+classifiers = ["Programming Language :: Python :: 3"]
 dependencies = [
-  "tree-sitter==0.20.4",
+  "tree-sitter==0.22.3",
+  "pydantic==2.8.2",
+  "PyYAML==6.0.1",
   # "requests",
   # 'importlib-metadata; python_version<"3.10"',
 ]
+
+[project.optional-dependencies]
+test = ["coverage", "mypy", "types-PyYAML", "tree-sitter-java==0.21.0"]
 
 [project.urls]
 Homepage = "https://github.com/JonahSussman/sequoia-diff"
@@ -31,7 +32,7 @@ sequoia_diff = ["rules.yaml"]
 
 [tool.setuptools.packages.find]
 # All the following settings are optional:
-where = ["."]  # ["."] by default
-include = ["sequoia_diff*"]  # ["*"] by default
-exclude = ["tests*"]  # empty by default
-namespaces = true  # true by default
+where = ["."]               # ["."] by default
+include = ["sequoia_diff*"] # ["*"] by default
+exclude = ["tests*"]        # empty by default
+namespaces = true           # true by default

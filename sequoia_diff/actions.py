@@ -1,233 +1,307 @@
 from collections import defaultdict
+from typing import Callable, Optional, TypeVar, cast
 
-from sequoia_diff.types import MappingDict, Node
-from sequoia_diff.types import Action, Insert, Update, Move, Delete
+from sequoia_diff.models import Action, Delete, Insert, MappingDict, Move, Node, Update
 
-def fake_node(*children: Node):
-  start_byte = 0
-  end_byte   = float('inf')
-  size       = 0
-  height     = 0
-  hash_value = 0
-  structure_hash_value = 0
-
-  for c in children:
-    start_byte = min(start_byte, c.start_byte)
-    end_byte = max(end_byte, c.end_byte)
-    size += c.size
-    height = max(height, c.height + 1)
-    hash_value += c.hash_value
-    structure_hash_value += c.structure_hash_value
-
-  return Node(
-    ts_node=None,
-    type="fake-type",
-    start_byte=start_byte,
-    end_byte=end_byte,
-    label="",
-    children=list(children),
-    parent=None,
-    size=size,
-    height=height,
-    hash_value=hash(hash_value + hash('fake-type') + hash('')),
-    structure_hash_value=hash(structure_hash_value + hash('fake-type'))
-  )
+T = TypeVar("T")
 
 
-def generate_chawathe_edit_script(mappings: MappingDict, src: Node, dst: Node):
-  cpy_src = src.deep_copy()
-  cpy_mappings = MappingDict()
-
-  # src_to_cpy, cpy_to_src = {}, {}
-  src_to_cpy = defaultdict(lambda: fake_node())
-  cpy_to_src = defaultdict(lambda: fake_node())
-  src_gen, cpy_gen = src.preorder(), cpy_src.preorder()
-
-  while True:
-    src_node, cpy_node = next(src_gen), next(cpy_gen)
-    if src_node is None or cpy_node is None: break
-    src_to_cpy[src_node] = cpy_node
-    cpy_to_src[cpy_node] = src_node
-
-  for src_node, dst_node in mappings.src_to_dst.items():
-    cpy_mappings.put(src_to_cpy[src_node], dst_node)
-
-  src_fake_root, dst_fake_root = fake_node(cpy_src), fake_node(dst)
-
-  cpy_src.parent = src_fake_root
-
-  dst_orig_parent = dst.parent
-  dst.parent = dst_fake_root
-
-  actions: list[Action] = []
-  dst_in_order: set[Node] = set()
-  src_in_order: set[Node] = set()
-
-  cpy_mappings.put(src_fake_root, dst_fake_root)
-
-
-  def find_pos(x: Node):
-    y = x.parent
-    siblings = y.children
-
-    for c in siblings:
-      if c in dst_in_order:
-        if c is x:
-          return 0
-        break
-
-    v: Node | None = None
-    for i in range(x.position_in_parent()):
-      c = siblings[i]
-      if c in dst_in_order:
-        v = c
-
-    if v is None: return 0
-
-    u = cpy_mappings.dst_to_src[v]
-    return u.position_in_parent() + 1
-
-  def lcs(x: list[Node], y: list[Node]):
+def lcs(
+    x: list[T], y: list[T], equal: Callable[[T, T], bool] = lambda a, b: a == b
+) -> list[tuple[T, T]]:
+    """
+    Performs the longest common subsequence algorithm on two lists. It returns a
+    list of tuples, where each tuple contains the elements that are common to
+    both. The reason for this is that a custom equality function can be
+    provided, so we must provide both elements that are "equal".
+    """
     m, n = len(x), len(y)
-    result: list[tuple[Node, Node]] = []
-    
+    result: list[tuple[T, T]] = []
+
     opt = [[0 for _ in range(n + 1)] for _ in range(m + 1)]
 
     for i in range(m - 1, -1, -1):
-      for j in range(n - 1, -1, -1):
-        if cpy_mappings.dst_to_src[y[j]] == x[i]:
-          opt[i][j] = opt[i + 1][j + 1] + 1
-        else:
-          opt[i][j] = max(opt[i + 1][j], opt[i][j + 1])
+        for j in range(n - 1, -1, -1):
+            if equal(x[i], y[j]):
+                opt[i][j] = opt[i + 1][j + 1] + 1
+            else:
+                opt[i][j] = max(opt[i + 1][j], opt[i][j + 1])
 
     i, j = 0, 0
     while i < m and j < n:
-      if cpy_mappings.dst_to_src[y[j]] == x[i]:
-        result.append((x[i], y[j]))
-        i += 1
-        j += 1
-      elif opt[i+1][j] >= opt[i][j+1]:
-        i += 1
-      else:
-        j += 1
+        if equal(x[i], y[j]):
+            result.append((x[i], y[j]))
+            i += 1
+            j += 1
+        elif opt[i + 1][j] >= opt[i][j + 1]:
+            i += 1
+        else:
+            j += 1
 
     return result
 
-  for x in dst.bfs():
-    if x is None: break
 
-    w: Node = None
-    y: Node = x.parent
-    z: Node = cpy_mappings.dst_to_src[y]
+def find_pos(dst_node: Node, dst_in_order: set[Node], mappings: MappingDict):
+    """
+    Finds the rightmost sibling of node that is to the left of node and is
+    marked in order. Returns the position immediately to the right of it.
+    """
+    parent = dst_node.parent
+    if parent is None:
+        return 0
 
-    if x not in cpy_mappings.dst_to_src:
-      k = find_pos(x)
-      w = fake_node()
-      actions.append(Insert(x, cpy_to_src[z], k))
-      cpy_to_src[w] = x
-      cpy_mappings.put(w, x)
-      z.children.insert(k, w)
-    else:
-      w = cpy_mappings.dst_to_src[x]
-      if x is not dst:
-        v = w.parent
-        if w.label != x.label:
-          actions.append(Update(cpy_to_src[w], cpy_to_src[w].label, x.label))
-          w.label = x.label
-        if z is not v:
-          k = find_pos(x)
-          actions.append(Move(cpy_to_src[w], cpy_to_src[z], k))
-          old_k = w.position_in_parent()
-          w.parent.children.pop(old_k)
-          z.children.insert(k, w)
+    siblings = parent.children
 
+    # If node is the leftmost child of its parent that is marked "in order",
+    # return 0
+    for sibling in siblings:
+        if sibling in dst_in_order:
+            if sibling is dst_node:
+                return 0
+            break
 
-    src_in_order.add(w)
-    dst_in_order.add(x)
+    # Find the rightmost sibling of node that is to the left of node and is
+    # marked "in order"
+    rightmost_in_order_sibling: Optional[Node] = None
+    for i in range(dst_node.position_in_parent):
+        sibling = siblings[i]
+        if sibling in dst_in_order:
+            rightmost_in_order_sibling = sibling
 
-    # align_children
+    if rightmost_in_order_sibling is None:
+        return 0
 
-    for c in w.children:
-      if c in src_in_order: src_in_order.remove(c)
-    for c in x.children: 
-      if c in dst_in_order: dst_in_order.remove(c)
+    u = mappings.dst_to_src[rightmost_in_order_sibling]
+    if u.parent is None:
+        return 0
 
-    s1: list[Node] = []
-    s2: list[Node] = []
-
-    for c in w.children:
-      if c in cpy_mappings.src_to_dst:
-        if cpy_mappings.src_to_dst[c] in x.children:
-          s1.append(c)
-
-    for c in x.children:
-      if c in cpy_mappings.dst_to_src:
-        if cpy_mappings.dst_to_src[c] in w.children:
-          s2.append(c)
-
-    lcs_list = lcs(s1, s2)
-
-    for m in lcs_list:
-      src_in_order.add(m[0])
-      dst_in_order.add(m[1])
-
-    for b in s2: 
-      for a in s1:
-        if not cpy_mappings.has(a, b): continue
-        if (a, b) in lcs_list: continue
-        a.parent.children.remove(a)
-        k = find_pos(b)
-        actions.append(Move(cpy_to_src[a], cpy_to_src[w], k))
-        w.children.insert(k, a)
-        a.parent = w
-        src_in_order.add(a)
-        dst_in_order.add(b)
-
-  for w in cpy_src.postorder():
-    if w is None: break
-    if w.type == 'fake-type': continue
-    if w not in cpy_mappings.src_to_dst:
-      actions.append(Delete(cpy_to_src[w]))
-
-  dst.parent = dst_orig_parent
-
-  return actions
+    return u.position_in_parent + 1
 
 
-def generate_simplified_chawathe_edit_script(mappings: MappingDict, src: Node, dst: Node):
-  actions = generate_chawathe_edit_script(mappings, src, dst)
+def align_children(
+    src: Node,
+    dst: Node,
+    src_in_order: set[Node],
+    dst_in_order: set[Node],
+    mappings: MappingDict,
+) -> list[Move]:
+    """
+    Statefully align the children of src and dst.
 
-  added_nodes: dict[Node, Insert] = {}
-  deleted_nodes: dict[Node, Delete] = {}
+    We say that the children of src and dst are misaligned if src has matched
+    children u and v such that u is to the left of v in src's tree but the
+    partner of u is to the right of the partner of v in dst's tree. If we find
+    that the children are misaligned, we generate Move operations to align the
+    children.
+    """
 
-  for a in actions:
-    if isinstance(a, Insert):
-      added_nodes[a.node] = a
-    elif isinstance(a, Delete):
-      deleted_nodes[a.node] = a
+    actions: list[Move] = []
 
-  # FIXME: Add to Node class
-  def desc(node: Node):
-    result: list[Node] = []
-    for n in node.preorder():
-      if n is None: break
-      if n is node: continue
-      result.append(n)
-    return result
+    # Mark all children of src and dst as "out of order"
+    for child in src.children:
+        if child in src_in_order:
+            src_in_order.remove(child)
+    for child in dst.children:
+        if child in dst_in_order:
+            dst_in_order.remove(child)
+
+    # Children of src whose partners are children of dst
+    matched_src_children: list[Node] = []
+    for child in src.children:
+        if mappings.src_to_dst.get(child) in dst.children:
+            matched_src_children.append(child)
+
+    # Children of dst whose partners are children of src
+    matched_dst_children: list[Node] = []
+    for child in dst.children:
+        if mappings.dst_to_src.get(child) in src.children:
+            matched_dst_children.append(child)
+
+    # Find the longest common subsequence of matched_src_children and
+    # matched_dst_children. Basically, the aligned children.
+    lcs_list = lcs(
+        matched_src_children,
+        matched_dst_children,
+        lambda a, b: a == mappings.dst_to_src[b],
+    )
+
+    for src_node, dst_node in lcs_list:
+        src_in_order.add(src_node)
+        dst_in_order.add(dst_node)
+
+    # Ensure left-to-right insertions by doing matched_dst first
+    for dst_child in matched_dst_children:
+        for src_child in matched_src_children:
+            # Only consider mapped, misaligned children
+            if not mappings.has(src_child, dst_child):
+                continue
+            if (src_child, dst_child) in lcs_list:
+                continue
+
+            # Append and apply move operation
+
+            if src_child.parent is None:  # NOTE: Shouldn't happen
+                raise ValueError("parent is None")
+
+            src.children_remove(src_child)
+            position = find_pos(dst_child, dst_in_order, mappings)
+
+            actions.append(Move(src_child, src, position))
+            src.children_insert(position, src_child)
+
+            src_in_order.add(src_child)
+            dst_in_order.add(dst_child)
+
+    return actions
 
 
-  for n in added_nodes:
-    if n.parent in added_nodes and all(d in added_nodes for d in desc(n.parent)):
-      actions.remove(added_nodes[n])
-    # elif len(n.children) > 0 and all(d in added_nodes for d in desc(n.parent)):
-    #   orig_action = added_nodes[n]
-    #   # FIXME: actually insert-tree
-      
-  for n in deleted_nodes:
-    if n.parent in deleted_nodes and all(d in deleted_nodes for d in desc(n.parent)):
-      actions.remove(deleted_nodes[n])
+def generate_chawathe_edit_script(mappings: MappingDict, src: Node, dst: Node):
+    """
+    Perform the Chawathe algorithm to generate an edit script.
 
-    # if t.parent in added_trees and all(descendant in added_trees for descendant in t.parent.descendants):
-    #     actions.remove(added_trees[t])
+    https://doi.org/10.1145/235968.233366
+    """
 
-  return actions
+    # Create a copy of src to work with. We could technically create a copy of
+    # dst, but we never modify it (aside from setting a fake parent), so it's
+    # not necessary.
+    cpy_src = src.deep_copy()
+    cpy_mappings = MappingDict()
+
+    def fake_node():
+        return Node(type="fake-type", label="fake-label")
+
+    # TODO: See if we can use a MappingDict instead
+    src_to_cpy: defaultdict[Node, Node] = defaultdict(fake_node)
+    cpy_to_src: defaultdict[Node, Node] = defaultdict(fake_node)
+
+    for src_node, cpy_node in zip(src.pre_order(), cpy_src.pre_order()):
+        src_to_cpy[src_node] = cpy_node
+        cpy_to_src[cpy_node] = src_node
+
+    for src_node, dst_node in mappings.items():
+        cpy_mappings.put(src_to_cpy[src_node], dst_node)
+
+    # Create "fake roots" (sentinel nodes) to make things easier
+    dst_orig_parent = dst.parent  # Defer dst.parent = dst_orig_parent
+
+    new_cpy_src_parent = fake_node()
+    cpy_src.set_parent(new_cpy_src_parent)
+
+    new_dst_parent = fake_node()
+    dst.set_parent(new_dst_parent)
+
+    cpy_mappings.put(new_cpy_src_parent, new_dst_parent)
+
+    actions: list[Action] = []
+    dst_in_order: set[Node] = set()
+    src_in_order: set[Node] = set()
+
+    # Visit the nodes of dst in breadth-first order
+    for current_node in dst.bfs():
+        # Parent should always have a partner because of bfs traversal
+        parent_partner: Node = cpy_mappings.dst_to_src[cast(Node, current_node.parent)]
+        partner_node: Node
+
+        # If current node has no partner
+        if current_node not in cpy_mappings.dst_to_src:
+            partner_node = fake_node()
+            position = find_pos(current_node, dst_in_order, cpy_mappings)
+
+            actions.append(Insert(current_node, cpy_to_src[parent_partner], position))
+
+            cpy_to_src[partner_node] = current_node
+            cpy_mappings.put(partner_node, current_node)
+            parent_partner.children.insert(position, partner_node)
+
+        # else if current_node is not the root
+        elif current_node is not dst:
+            partner_node = cpy_mappings.dst_to_src[current_node]
+
+            if partner_node.parent is None:  # Should not happen
+                raise ValueError("parent is None")
+            v = partner_node.parent
+
+            if partner_node.label != current_node.label:
+                # Append and apply update operation
+                actions.append(
+                    Update(
+                        cpy_to_src[partner_node],
+                        cpy_to_src[partner_node].label,
+                        current_node.label if current_node.label else "",
+                    )
+                )
+                partner_node.label = current_node.label
+
+            if parent_partner is not v:
+                # Append and apply move operation
+                position = find_pos(current_node, dst_in_order, cpy_mappings)
+                actions.append(
+                    Move(cpy_to_src[partner_node], cpy_to_src[parent_partner], position)
+                )
+
+                old_position = partner_node.position_in_parent
+                partner_node.parent.children.pop(old_position)
+                parent_partner.children.insert(position, partner_node)
+        else:
+            partner_node = cpy_mappings.dst_to_src[current_node]
+
+        src_in_order.add(partner_node)
+        dst_in_order.add(current_node)
+
+        for move in align_children(
+            partner_node,
+            current_node,
+            src_in_order,
+            dst_in_order,
+            cpy_mappings,
+        ):
+            actions.append(
+                Move(cpy_to_src[move.node], cpy_to_src[move.parent], move.pos)
+            )
+
+    for node in cpy_src.post_order():
+        if node.type == "fake-type":
+            continue
+        if node not in cpy_mappings.src_to_dst:
+            actions.append(Delete(cpy_to_src[node]))
+
+    dst.set_parent(dst_orig_parent)  # Restore dst.parent
+
+    return actions
+
+
+def generate_simplified_chawathe_edit_script(
+    mappings: MappingDict, src: Node, dst: Node
+):
+    actions = generate_chawathe_edit_script(mappings, src, dst)
+
+    added_nodes: dict[Node, Insert] = {}
+    deleted_nodes: dict[Node, Delete] = {}
+
+    for action in actions:
+        if isinstance(action, Insert):
+            added_nodes[action.node] = action
+        elif isinstance(action, Delete):
+            deleted_nodes[action.node] = action
+
+    for n in added_nodes:
+        if n.parent in added_nodes and all(
+            d in added_nodes for d in n.parent.pre_order(skip_self=True)
+        ):
+            actions.remove(added_nodes[n])
+
+        # elif len(n.children) > 0 and all(d in added_nodes for d in n.parent.pre_order(skip_self=True)):
+        #   orig_action = added_nodes[n]
+        #   # FIXME: actually insert-tree
+
+    for n in deleted_nodes:
+        if n.parent in deleted_nodes and all(
+            d in deleted_nodes for d in n.parent.pre_order(skip_self=True)
+        ):
+            actions.remove(deleted_nodes[n])
+
+        # if t.parent in added_trees and all(descendant in added_trees for descendant in t.parent.descendants):
+        #     actions.remove(added_trees[t])
+
+    return actions
