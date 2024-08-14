@@ -1,9 +1,11 @@
 import hashlib
 import heapq
 from dataclasses import dataclass, field
-from typing import Any, Iterator, Optional
+from typing import Any, ItemsView, Iterator, Optional
 
-from pydantic import BaseModel, Field, RootModel
+from pydantic.fields import Field
+from pydantic.main import BaseModel
+from pydantic.root_model import RootModel
 
 
 class LanguageRules(BaseModel):
@@ -65,13 +67,13 @@ class Node:
         # self._lies_on_rightmost_path: bool = False
         # self._lies_on_leftmost_path: bool = False
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return self.hash_value
 
     def __lt__(self, other: "Node") -> bool:
         return (self.type, self.label) < (other.type, other.label)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return self.pretty_str_self()
 
     def deep_copy(self) -> "Node":
@@ -89,7 +91,7 @@ class Node:
 
         return result
 
-    def recompute_lightweight_stats(self):
+    def recompute_lightweight_stats(self) -> None:
         new_size = 1
         new_height = 0
 
@@ -127,7 +129,7 @@ class Node:
     #         node._idx_post_ltr = idx
     #         node._idx_post_rtl = self.size - idx - 1
 
-    def needs_lightweight_recomputation(self):
+    def needs_lightweight_recomputation(self) -> None:
         self._needs_lightweight_recomputation = True
 
         if self.parent is not None:
@@ -142,31 +144,31 @@ class Node:
     # Lightweight statistics properties
 
     @property
-    def size(self):
+    def size(self) -> int:
         if self._needs_lightweight_recomputation:
             self.recompute_lightweight_stats()
         return self._size
 
     @property
-    def height(self):
+    def height(self) -> int:
         if self._needs_lightweight_recomputation:
             self.recompute_lightweight_stats()
         return self._height
 
     @property
-    def hash_value(self):
+    def hash_value(self) -> int:
         if self._needs_lightweight_recomputation:
             self.recompute_lightweight_stats()
         return self._hash_value
 
     @property
-    def subtree_hash_value(self):
+    def subtree_hash_value(self) -> int:
         if self._needs_lightweight_recomputation:
             self.recompute_lightweight_stats()
         return self._subtree_hash_value
 
     @property
-    def position_in_parent(self):
+    def position_in_parent(self) -> int:
         # FIXME: This should be recomputed only when needed.
         if self.parent is None:
             self._position_in_parent = -1
@@ -215,7 +217,7 @@ class Node:
 
     # Tree modification methods
 
-    def children_append(self, child: "Node"):
+    def children_append(self, child: "Node") -> None:
         self.children.append(child)
         child.parent = self
         # child._dsu_parent = self._dsu_parent
@@ -223,7 +225,7 @@ class Node:
         child.needs_lightweight_recomputation()
         # child.needs_heavy_recomputation()
 
-    def children_insert(self, index: int, child: "Node"):
+    def children_insert(self, index: int, child: "Node") -> None:
         self.children.insert(index, child)
         child.parent = self
         # child._dsu_parent = self._dsu_parent
@@ -231,7 +233,7 @@ class Node:
         child.needs_lightweight_recomputation()
         # child.needs_heavy_recomputation()
 
-    def children_remove(self, child: "Node"):
+    def children_remove(self, child: "Node") -> None:
         self.children.remove(child)
         child.parent = None
         # for node in child.pre_order():
@@ -243,7 +245,7 @@ class Node:
         child.needs_lightweight_recomputation()
         # child.needs_heavy_recomputation()
 
-    def set_parent(self, parent: Optional["Node"]):
+    def set_parent(self, parent: Optional["Node"]) -> None:
         if self.parent is not None:
             self.parent.children_remove(self)
 
@@ -252,7 +254,7 @@ class Node:
 
     # Traversal generators
 
-    def pre_order(self, skip_self=False, rtl=False) -> Iterator["Node"]:
+    def pre_order(self, skip_self: bool = False, rtl: bool = False) -> Iterator["Node"]:
         if not skip_self:
             yield self
 
@@ -263,7 +265,9 @@ class Node:
             for child in reversed(self.children):
                 yield from child.pre_order()
 
-    def post_order(self, skip_self=False, rtl=False) -> Iterator["Node"]:
+    def post_order(
+        self, skip_self: bool = False, rtl: bool = False
+    ) -> Iterator["Node"]:
         if not rtl:
             for child in self.children:
                 yield from child.post_order()
@@ -284,7 +288,7 @@ class Node:
 
     # Printing methods
 
-    def pretty_str(self, level=0) -> str:
+    def pretty_str(self, level: int = 0) -> str:
         return f"{'  ' * level}{self.pretty_str_self()}\n" + "".join(
             [child.pretty_str(level + 1) for child in self.children]
         )
@@ -305,51 +309,50 @@ class MappingDict:
     src_to_dst: dict[Node, Node] = field(default_factory=dict)
     dst_to_src: dict[Node, Node] = field(default_factory=dict)
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.src_to_dst)
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[tuple[Node, Node]]:
         for src, dst in self.items():
             yield (src, dst)
 
-    def put(self, src: Node, dst: Node):
+    def put(self, src: Node, dst: Node) -> None:
         self.src_to_dst[src] = dst
         self.dst_to_src[dst] = src
 
-    def put_recursively(self, src: Node, dst: Node):
+    def put_recursively(self, src: Node, dst: Node) -> None:
         self.put(src, dst)
         for i in range(len(src.children)):
             self.put_recursively(src.children[i], dst.children[i])
 
-    def pop(self, src: Node, dst: Node):
-        self.src_to_dst.pop(src)
-        self.dst_to_src.pop(dst)
+    def pop(self, src: Node, dst: Node) -> tuple[Node, Node]:
+        return (self.src_to_dst.pop(src), self.dst_to_src.pop(dst))
 
-    def has(self, src: Node, dst: Node):
+    def has(self, src: Node, dst: Node) -> bool:
         if src not in self.src_to_dst:
             return False
 
         return self.src_to_dst[src] is dst
 
-    def items(self, dst_to_src: bool = False):
+    def items(self, dst_to_src: bool = False) -> ItemsView[Node, Node]:
         if dst_to_src:
             return self.dst_to_src.items()
 
         return self.src_to_dst.items()
 
-    def are_srcs_unmapped(self, srcs: list[Node]):
+    def are_srcs_unmapped(self, srcs: list[Node]) -> bool:
         return all(src not in self.src_to_dst for src in srcs)
 
-    def are_dsts_unmapped(self, dsts: list[Node]):
+    def are_dsts_unmapped(self, dsts: list[Node]) -> bool:
         return all(dst not in self.dst_to_src for dst in dsts)
 
-    def has_unmapped_src_children(self, node: Node):
+    def has_unmapped_src_children(self, node: Node) -> bool:
         return any(x not in self.src_to_dst for x in node.pre_order(True))
 
-    def has_unmapped_dst_children(self, node: Node):
+    def has_unmapped_dst_children(self, node: Node) -> bool:
         return any(x not in self.dst_to_src for x in node.pre_order(True))
 
-    def is_mapping_allowed(self, src: Node, dst: Node):
+    def is_mapping_allowed(self, src: Node, dst: Node) -> bool:
         return (
             src.type == dst.type
             and src not in self.src_to_dst
@@ -367,13 +370,13 @@ class NodePriorityQueue:
     min_height: int = 1
     queue: list[tuple[int, Node]] = field(default_factory=list)
 
-    def is_empty(self):
+    def is_empty(self) -> bool:
         """
         Returns if the queue is empty.
         """
         return len(self.queue) == 0
 
-    def push(self, node: Node):
+    def push(self, node: Node) -> None:
         """
         Push an element into the queue. If the height of the node is less than
         the minimum height, the node is not pushed.
@@ -382,14 +385,14 @@ class NodePriorityQueue:
             return
         heapq.heappush(self.queue, (-node.height, node))
 
-    def push_children(self, node: Node):
+    def push_children(self, node: Node) -> None:
         """
         Push all children of the node into the queue.
         """
         for child in node.children:
             self.push(child)
 
-    def pop(self):
+    def pop(self) -> tuple[int, Node]:
         """
         Pop the front element of the queue.
         """
@@ -409,13 +412,13 @@ class NodePriorityQueue:
 
         return priority, result
 
-    def clear(self):
+    def clear(self) -> None:
         """
         Remove all items from the queue.
         """
         self.queue.clear()
 
-    def curr_priority(self):
+    def curr_priority(self) -> int:
         """
         Returns the priority of the front element of the queue.
         """
@@ -451,11 +454,11 @@ class Insert:
     pos: int
 
     @property
-    def orig_node(self):
+    def orig_node(self) -> Optional[Any]:
         return self.node.orig_node
 
     @orig_node.setter
-    def orig_node(self, value):
+    def orig_node(self, value: Optional[Any]) -> None:
         self.node.orig_node = value
 
 
@@ -466,11 +469,11 @@ class Update:
     new_label: Optional[str]
 
     @property
-    def orig_node(self):
+    def orig_node(self) -> Optional[Any]:
         return self.node.orig_node
 
     @orig_node.setter
-    def orig_node(self, value):
+    def orig_node(self, value: Optional[Any]) -> None:
         self.node.orig_node = value
 
 
@@ -481,11 +484,11 @@ class Move:
     pos: int
 
     @property
-    def orig_node(self):
+    def orig_node(self) -> Optional[Any]:
         return self.node.orig_node
 
     @orig_node.setter
-    def orig_node(self, value):
+    def orig_node(self, value: Optional[Any]) -> None:
         self.node.orig_node = value
 
 
@@ -494,11 +497,11 @@ class Delete:
     node: Node
 
     @property
-    def orig_node(self):
+    def orig_node(self) -> Optional[Any]:
         return self.node.orig_node
 
     @orig_node.setter
-    def orig_node(self, value):
+    def orig_node(self, value: Optional[Any]) -> None:
         self.node.orig_node = value
 
 

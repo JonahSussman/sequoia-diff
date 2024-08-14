@@ -41,7 +41,7 @@ def lcs(
     return result
 
 
-def find_pos(dst_node: Node, dst_in_order: set[Node], mappings: MappingDict):
+def find_pos(dst_node: Node, dst_in_order: set[Node], mappings: MappingDict) -> int:
     """
     Finds the rightmost sibling of node that is to the left of node and is
     marked in order. Returns the position immediately to the right of it.
@@ -155,7 +155,9 @@ def align_children(
     return actions
 
 
-def generate_chawathe_edit_script(mappings: MappingDict, src: Node, dst: Node):
+def generate_chawathe_edit_script(
+    mappings: MappingDict, src: Node, dst: Node
+) -> list[Action]:
     """
     Perform the Chawathe algorithm to generate an edit script.
 
@@ -168,7 +170,7 @@ def generate_chawathe_edit_script(mappings: MappingDict, src: Node, dst: Node):
     cpy_src = src.deep_copy()
     cpy_mappings = MappingDict()
 
-    def fake_node():
+    def fake_node() -> Node:
         return Node(type="fake-type", label="fake-label")
 
     # TODO: See if we can use a MappingDict instead
@@ -285,7 +287,7 @@ def generate_chawathe_edit_script(mappings: MappingDict, src: Node, dst: Node):
 
 def generate_simplified_chawathe_edit_script(
     mappings: MappingDict, src: Node, dst: Node
-):
+) -> list[Action]:
     actions = generate_chawathe_edit_script(mappings, src, dst)
 
     added_nodes: dict[Node, Insert] = {}

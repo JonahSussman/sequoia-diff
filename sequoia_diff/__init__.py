@@ -11,7 +11,7 @@ def get_tree_diff(
     dst_tree: Any,
     loader: Optional[LoaderFunc] = None,
     loader_args: Optional[list[Any]] = None,
-):
+) -> list[Action]:
     """
     Produces the edit script in order to transform src_tree into dst_tree.
     """

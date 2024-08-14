@@ -13,7 +13,7 @@ PATH_TS_RULES = os.path.join(os.path.dirname(__file__), "rules.yaml")
 
 def from_tree_sitter_node(
     ts_node: ts.Node, language_or_rules: Optional[LanguageRules | str] = None
-):
+) -> Node:
     if language_or_rules is None:
         rules = LanguageRules()
     elif isinstance(language_or_rules, str):
@@ -55,5 +55,5 @@ def from_tree_sitter_node(
 
 def from_tree_sitter_tree(
     tree: ts.Tree, language_or_rules: Optional[LanguageRules | str] = None
-):
+) -> Node:
     return from_tree_sitter_node(tree.root_node, language_or_rules)

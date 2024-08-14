@@ -1,7 +1,7 @@
 import difflib
 
 
-def levenshtein_distance(s1: str | None, s2: str | None):
+def levenshtein_distance(s1: str | None, s2: str | None) -> int:
     if s1 is None:
         s1 = ""
     if s2 is None:
@@ -26,7 +26,7 @@ def levenshtein_distance(s1: str | None, s2: str | None):
     return previous_row[-1]
 
 
-def normalized_levenshtein_distance(s1: str | None, s2: str | None):
+def normalized_levenshtein_distance(s1: str | None, s2: str | None) -> float:
     if s1 is None:
         s1 = ""
     if s2 is None:
@@ -35,7 +35,7 @@ def normalized_levenshtein_distance(s1: str | None, s2: str | None):
     levenshtein_dist = levenshtein_distance(s1, s2)
     max_len = max(len(s1), len(s2))
     if max_len == 0:
-        return 0
+        return 0.0
 
     return levenshtein_dist / max_len
 
@@ -64,7 +64,7 @@ def normalized_tri_gram_distance(a: str | None, b: str | None) -> float:
     return 1.0 - similarity_ratio  # Distance is 1 - similarity ratio
 
 
-def tri_gram_distance(a: str | None, b: str | None):
+def tri_gram_distance(a: str | None, b: str | None) -> int:
     if a is None:
         a = ""
     if b is None:
