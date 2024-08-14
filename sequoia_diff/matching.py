@@ -74,7 +74,6 @@ def match_greedy_top_down(mappings: MappingDict, src: Node, dst: Node):
                     pq_src.push_children(node)
                 for node in dst_set:
                     pq_dst.push_children(node)
-                pass
 
             # Unique
             elif len(src_set) == 1 and len(dst_set) == 1:

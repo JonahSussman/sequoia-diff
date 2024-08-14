@@ -72,7 +72,7 @@ class Node:
         return (self.type, self.label) < (other.type, other.label)
 
     def __repr__(self):
-        return f"Node(type={self.type}, label={self.label} at {hex(id(self))})"
+        return self.pretty_str_self()
 
     def deep_copy(self) -> "Node":
         result = Node(
@@ -106,7 +106,7 @@ class Node:
         for child in self.children:
             new_size += child.size
             new_height = max(new_height, child.height + 1)
-            hasher.update(child.hash_value.to_bytes(32, "big"))
+            hasher.update(child.subtree_hash_value.to_bytes(32, "big"))
 
         self._size = new_size
         self._height = new_height
@@ -290,7 +290,14 @@ class Node:
         )
 
     def pretty_str_self(self) -> str:
-        return f"{self.type}: {f'label={self.label}' if self.label else ''} subtree_hash={str(hex(self.subtree_hash_value))[:16]}"
+        # NOTE: There might be a better way to do this...
+        a: list[Optional[str]] = [
+            f'type="{self.type}"',
+            f'label="{self.label}"' if self.label else None,
+            f"subtree_hash={str(hex(self.subtree_hash_value))[:13]}...",
+        ]
+        b: list[str] = [prop for prop in a if prop is not None]
+        return f"{self.__class__.__name__}({', '.join(b)})"
 
 
 @dataclass
@@ -312,7 +319,7 @@ class MappingDict:
     def put_recursively(self, src: Node, dst: Node):
         self.put(src, dst)
         for i in range(len(src.children)):
-            self.put(src.children[i], dst.children[i])
+            self.put_recursively(src.children[i], dst.children[i])
 
     def pop(self, src: Node, dst: Node):
         self.src_to_dst.pop(src)
@@ -455,8 +462,8 @@ class Insert:
 @dataclass
 class Update:
     node: Node
-    label: str | None
-    value: str
+    old_label: Optional[str]
+    new_label: Optional[str]
 
     @property
     def orig_node(self):

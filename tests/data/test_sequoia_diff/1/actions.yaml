@@ -1,0 +1,4 @@
+- kind: move_node
+  node: Node(type="constructor_declaration", subtree_hash=0x49c363854d4...)
+  parent: Node(type="class_body", subtree_hash=0xfadb2814e28...)
+  pos: 2

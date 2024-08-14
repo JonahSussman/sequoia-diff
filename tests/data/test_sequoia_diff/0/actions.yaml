@@ -1,0 +1,9 @@
+- kind: insert_node
+  node: Node(type="constructor_declaration", subtree_hash=0x54aad8bc0a9...)
+  pos: 1
+- kind: update_node
+  new_label: changed
+  node: Node(type="identifier", label="property", subtree_hash=0x2761c0f8af9...)
+  old_label: property
+- kind: delete_node
+  node: Node(type="constructor_declaration", subtree_hash=0x49c363854d4...)
