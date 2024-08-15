@@ -77,5 +77,4 @@ def tri_gram_distance(a: str | None, b: str | None) -> int:
     matches = sum(n for _, _, n in matcher.get_matching_blocks())
     total_trigrams = len(trigrams1) + len(trigrams2)
 
-    print(f"matches: {matches}, total_trigrams: {total_trigrams}")
     return total_trigrams - 2 * matches

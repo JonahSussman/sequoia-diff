@@ -293,7 +293,10 @@ def generate_simplified_chawathe_edit_script(
     mappings: MappingDict, src: Node, dst: Node
 ) -> list[Action]:
     actions = generate_chawathe_edit_script(mappings, src, dst)
-
+    """
+    The regular Chawathe algorithm generates a lot of redundant actions. This
+    function simplifies the edit script by collapsing actions. 
+    """
     added_nodes: dict[Node, Insert] = {}
     deleted_nodes: dict[Node, Delete] = {}
 
@@ -308,10 +311,12 @@ def generate_simplified_chawathe_edit_script(
             d in added_nodes for d in n.parent.pre_order(skip_self=True)
         ):
             actions.remove(added_nodes[n])
+            added_nodes[n.parent].whole_subtree = True
 
-        # elif len(n.children) > 0 and all(d in added_nodes for d in n.parent.pre_order(skip_self=True)):
-        #   orig_action = added_nodes[n]
-        #   # FIXME: actually insert-tree
+        # elif len(n.children) > 0 and all(d in added_nodes for d in n.pre_order(skip_self=True)):
+        #     orig_action = added_nodes[n]
+        #     actions.insert(actions.index(orig_action), Insert(n, orig_action.parent, orig_action.pos))
+        #     actions.remove(orig_action)
 
     for n in deleted_nodes:
         if n.parent in deleted_nodes and all(
