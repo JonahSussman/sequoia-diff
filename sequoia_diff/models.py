@@ -386,9 +386,9 @@ class MappingDict:
     def __len__(self) -> int:
         return len(self.src_to_dst)
 
-    def __iter__(self) -> Iterator[tuple[Node, Node]]:
-        for src, dst in self.items():
-            yield (src, dst)
+    def __iter__(self) -> Iterator[ItemsView[Node, Node]]:
+        for item in self.items():
+            yield item
 
     def put(self, src: Node, dst: Node) -> None:
         self.src_to_dst[src] = dst

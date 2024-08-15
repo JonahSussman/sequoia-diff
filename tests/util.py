@@ -1,5 +1,6 @@
 import os
 from io import TextIOWrapper
+from typing import ItemsView, cast
 
 import tree_sitter_java
 from tree_sitter import Language, Parser
@@ -84,3 +85,10 @@ def dictize_mappings(mappings: MappingDict):
             "src": a.pretty_str_self(),
             "dst": b.pretty_str_self(),
         }
+
+
+def dictize_mapping(mapping: ItemsView[Node, Node]):
+    return {
+        "src": cast(Node, mapping[0]).pretty_str_self(),
+        "dst": cast(Node, mapping[1]).pretty_str_self(),
+    }

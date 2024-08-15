@@ -141,7 +141,9 @@ class TestGetTreeAndAdjacent(unittest.TestCase):
         ]
         self.assertEqual(list(mappings.items()), expected_mappings)
 
-        expected_actions = [Insert(node=dst.children[1], parent=src, pos=1)]
+        expected_actions = [
+            Insert(node=dst.children[1], parent=src, pos=1, whole_subtree=True)
+        ]
         actions = generate_simplified_chawathe_edit_script(mappings, src, dst)
         self.assertEqual(actions, expected_actions)
 
