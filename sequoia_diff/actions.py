@@ -213,7 +213,12 @@ def generate_chawathe_edit_script(
             position = find_pos(current_node, dst_in_order, cpy_mappings)
 
             actions.append(
-                Insert(current_node, cpy_to_src[partner_of_parent], position)
+                Insert(
+                    current_node,
+                    cpy_to_src[partner_of_parent],
+                    position,
+                    whole_subtree=len(current_node.children) == 0,
+                )
             )
 
             cpy_to_src[partner_node] = current_node
@@ -306,6 +311,8 @@ def generate_simplified_chawathe_edit_script(
         elif isinstance(action, Delete):
             deleted_nodes[action.node] = action
 
+    # Determine if the whole subtree should be inserted or removed.
+    # NOTE: There might be a faster way of doing this
     for n in added_nodes:
         if n.parent in added_nodes and all(
             d in added_nodes for d in n.parent.pre_order(skip_self=True)
@@ -313,18 +320,13 @@ def generate_simplified_chawathe_edit_script(
             actions.remove(added_nodes[n])
             added_nodes[n.parent].whole_subtree = True
 
-        # elif len(n.children) > 0 and all(d in added_nodes for d in n.pre_order(skip_self=True)):
-        #     orig_action = added_nodes[n]
-        #     actions.insert(actions.index(orig_action), Insert(n, orig_action.parent, orig_action.pos))
-        #     actions.remove(orig_action)
-
     for n in deleted_nodes:
         if n.parent in deleted_nodes and all(
             d in deleted_nodes for d in n.parent.pre_order(skip_self=True)
         ):
             actions.remove(deleted_nodes[n])
 
-        # if t.parent in added_trees and all(descendant in added_trees for descendant in t.parent.descendants):
-        #     actions.remove(added_trees[t])
+    # TODO: Figure out if there is an intelligent way of removing insert-delete
+    # pairs. Either by combining them here or modifying the Chawathe algorithm.
 
     return actions

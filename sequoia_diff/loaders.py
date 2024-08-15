@@ -1,14 +1,14 @@
+import json
 import os
 from typing import Callable, Optional
 
 import tree_sitter as ts
-import yaml
 
 from sequoia_diff.models import LanguageRules, LanguageRuleSet, Node
 
 LoaderFunc = Callable[..., Node]
 
-PATH_TS_RULES = os.path.join(os.path.dirname(__file__), "rules.yaml")
+PATH_TS_RULES = os.path.join(os.path.dirname(__file__), "rules.json")
 
 
 def from_tree_sitter_node(
@@ -20,7 +20,7 @@ def from_tree_sitter_node(
         language = language_or_rules
 
         with open(PATH_TS_RULES, "r") as f:
-            rule_set = LanguageRuleSet.model_validate(yaml.safe_load(f.read()))
+            rule_set = LanguageRuleSet.model_validate(json.loads(f.read()))
 
         root_rules = rule_set.root.get(language)
         if root_rules is None:
