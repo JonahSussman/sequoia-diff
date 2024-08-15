@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "sequoia_diff"
-version = "0.0.6"
+version = "0.0.7"
 authors = [{ name = "Jonah Sussman", email = "sussmanjonah@gmail.com" }]
 readme = "README.md"
 requires-python = ">=3.11"
@@ -33,7 +33,7 @@ Issues = "https://github.com/JonahSussman/sequoia-diff/issues"
 include-package-data = true
 
 [tool.setuptools.package-data]
-sequoia_diff = ["rules.yaml", "py.typed"]
+sequoia_diff = ["rules.json", "py.typed"]
 
 [tool.setuptools.packages.find]
 # All the following settings are optional:
