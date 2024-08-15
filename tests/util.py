@@ -49,7 +49,9 @@ def dictize_action(action: Action):
         obj = {
             "kind": "insert_node",
             "node": action.node.pretty_str_self(),
+            "parent": action.parent.pretty_str_self(),
             "pos": action.pos,
+            "whole_subtree": action.whole_subtree,
         }
     elif isinstance(action, Delete):
         obj = {

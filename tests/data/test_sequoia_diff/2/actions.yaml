@@ -1,0 +1,19 @@
+- kind: insert_node
+  node: Node(type="if_statement", subtree_hash=0xb7b0af06258...)
+  parent: Node(type="constructor_body", subtree_hash=0xb6d4646081d...)
+  pos: 0
+  whole_subtree: false
+- kind: insert_node
+  node: Node(type="parenthesized_expression", subtree_hash=0xd67c897d0b1...)
+  parent: Node(type="if_statement", subtree_hash=0xb7b0af06258...)
+  pos: 0
+  whole_subtree: true
+- kind: insert_node
+  node: Node(type="block", subtree_hash=0x1c0a85fa662...)
+  parent: Node(type="if_statement", subtree_hash=0xb7b0af06258...)
+  pos: 1
+  whole_subtree: false
+- kind: move_node
+  node: Node(type="expression_statement", subtree_hash=0xfa93ab857c5...)
+  parent: Node(type="block", subtree_hash=0x1c0a85fa662...)
+  pos: 0

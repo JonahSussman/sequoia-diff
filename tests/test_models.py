@@ -1,7 +1,9 @@
+import logging
 import unittest
 from hashlib import sha256
+from unittest.mock import MagicMock
 
-from sequoia_diff.models import Node
+from sequoia_diff.models import Delete, Insert, Move, Node, Update
 from tests.util import node
 
 
@@ -14,6 +16,8 @@ class TestNode(unittest.TestCase):
 
     def test_initialization(self):
         node = Node(type="root", label="root_node")
+        logging.debug(node)
+
         self.assertEqual(node.type, "root")
         self.assertEqual(node.label, "root_node")
         self.assertIsNone(node.orig_node)
@@ -42,10 +46,8 @@ class TestNode(unittest.TestCase):
         hasher = sha256()
         hasher.update(f"{len(self.root.children) > 0}".encode("utf-8"))
         hasher.update(self.root.type.encode("utf-8"))
-        if self.root.label is not None:
-            hasher.update(self.root.label.encode("utf-8"))
-        else:
-            hasher.update(b"")
+        hasher.update(self.root.label.encode("utf-8"))
+
         child1_hash = self.child1.hash_value.to_bytes(32, "big")
         child2_hash = self.child2.hash_value.to_bytes(32, "big")
         hasher.update(child1_hash)
@@ -115,3 +117,34 @@ class TestNode(unittest.TestCase):
 
     def test_hash_value(self):
         self.assertEqual(node("a").subtree_hash_value, node("a").subtree_hash_value)
+
+
+class TestAction(unittest.TestCase):
+    def test_orig_node(self):
+        mock_a = MagicMock()
+        mock_b = MagicMock()
+
+        def new_node():
+            return Node(type="mock", label="mock", orig_node=mock_a)
+
+        dummy = MagicMock()
+
+        i = Insert(new_node(), dummy, dummy)
+        self.assertIs(i.orig_node, mock_a)
+        i.orig_node = mock_b
+        self.assertIs(i.orig_node, mock_b)
+
+        u = Update(new_node(), dummy, dummy)
+        self.assertIs(u.orig_node, mock_a)
+        u.orig_node = mock_b
+        self.assertIs(u.orig_node, mock_b)
+
+        d = Delete(new_node())
+        self.assertIs(d.orig_node, mock_a)
+        d.orig_node = mock_b
+        self.assertIs(d.orig_node, mock_b)
+
+        m = Move(new_node(), dummy, dummy)
+        self.assertIs(m.orig_node, mock_a)
+        m.orig_node = mock_b
+        self.assertIs(m.orig_node, mock_b)

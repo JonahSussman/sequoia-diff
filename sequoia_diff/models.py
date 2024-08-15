@@ -53,6 +53,7 @@ class Node:
         self._position_in_parent: int = -1
         self._hash_value: int = -1
         self._subtree_hash_value: int = -1
+        self._subtree_type_hash_value: int = -1
 
         # TODO: Implement heavy statistics
 
@@ -74,9 +75,19 @@ class Node:
         return (self.type, self.label) < (other.type, other.label)
 
     def __repr__(self) -> str:
-        return self.pretty_str_self()
+        return (
+            f"Node("
+            f"type={self.type!r}, "
+            f"label={self.label!r}, "
+            f"children={self.children!r}, "
+            f"parent={self.parent!r}) "
+            f"at {id(self)})"
+        )
 
     def deep_copy(self) -> "Node":
+        """
+        Creates a deep copy of the node and its subtree.
+        """
         result = Node(
             orig_node=self.orig_node,
             type=self.type,
@@ -92,27 +103,38 @@ class Node:
         return result
 
     def recompute_lightweight_stats(self) -> None:
+        """
+        Recomputes some statistics about the node and its subtree. Note, because
+        the statistics are tagged with `@property`, each child's statistics will
+        be recursively computed as well.
+        """
         new_size = 1
         new_height = 0
 
-        hasher = hashlib.new("sha256")
+        type_label_hasher = hashlib.new("sha256")
+        type_hasher = hashlib.new("sha256")
 
-        hasher.update(
-            f"{len(self.children) > 0}".encode("utf-8")
-        )  # 0 if leaf, 1 if not
-        hasher.update(self.type.encode("utf-8"))
-        hasher.update(f"{self.label if self.label else ''}".encode("utf-8"))
+        # 0 if leaf, 1 if not
+        type_label_hasher.update(f"{len(self.children) > 0}".encode("utf-8"))
+        type_label_hasher.update(self.type.encode("utf-8"))
+        type_label_hasher.update(f"{self.label if self.label else ''}".encode("utf-8"))
 
-        self._hash_value = int(hasher.hexdigest(), 16)
+        type_hasher.update(f"{len(self.children) > 0}".encode("utf-8"))
+        type_hasher.update(self.type.encode("utf-8"))
+
+        self._hash_value = int(type_label_hasher.hexdigest(), 16)
 
         for child in self.children:
             new_size += child.size
             new_height = max(new_height, child.height + 1)
-            hasher.update(child.subtree_hash_value.to_bytes(32, "big"))
+
+            type_label_hasher.update(child.subtree_hash_value.to_bytes(32, "big"))
+            type_hasher.update(child.subtree_type_hash_value.to_bytes(32, "big"))
 
         self._size = new_size
         self._height = new_height
-        self._subtree_hash_value = int(hasher.hexdigest(), 16)
+        self._subtree_hash_value = int(type_label_hasher.hexdigest(), 16)
+        self._subtree_type_hash_value = int(type_hasher.hexdigest(), 16)
 
         self._needs_lightweight_recomputation = False
 
@@ -130,6 +152,10 @@ class Node:
     #         node._idx_post_rtl = self.size - idx - 1
 
     def needs_lightweight_recomputation(self) -> None:
+        """
+        After certain edit operations, we need to let the node know that it
+        needs to lazily recompute some statistics.
+        """
         self._needs_lightweight_recomputation = True
 
         if self.parent is not None:
@@ -145,30 +171,57 @@ class Node:
 
     @property
     def size(self) -> int:
+        """
+        The total number of nodes in this subtree including self
+        """
         if self._needs_lightweight_recomputation:
             self.recompute_lightweight_stats()
         return self._size
 
     @property
     def height(self) -> int:
+        """
+        The number of edges to self's furthest leaf
+        """
         if self._needs_lightweight_recomputation:
             self.recompute_lightweight_stats()
         return self._height
 
     @property
     def hash_value(self) -> int:
+        """
+        Hash value of ne node, considering the data relevant to this node only
+        (type, label). Does not consider the children.
+        """
         if self._needs_lightweight_recomputation:
             self.recompute_lightweight_stats()
         return self._hash_value
 
     @property
     def subtree_hash_value(self) -> int:
+        """
+        Hash value of the subtree rooted at this node, considering the types and
+        labels of the nodes.
+        """
         if self._needs_lightweight_recomputation:
             self.recompute_lightweight_stats()
         return self._subtree_hash_value
 
     @property
+    def subtree_type_hash_value(self) -> int:
+        """
+        Hash value of the subtree rooted at this node, only considering the
+        types of the nodes.
+        """
+        if self._needs_lightweight_recomputation:
+            self.recompute_lightweight_stats()
+        return self._subtree_type_hash_value
+
+    @property
     def position_in_parent(self) -> int:
+        """
+        The index of this node in its parent's children list.
+        """
         # FIXME: This should be recomputed only when needed.
         if self.parent is None:
             self._position_in_parent = -1
@@ -218,6 +271,10 @@ class Node:
     # Tree modification methods
 
     def children_append(self, child: "Node") -> None:
+        """
+        Appends a child to the node and sets the parent of the child to the
+        node.
+        """
         self.children.append(child)
         child.parent = self
         # child._dsu_parent = self._dsu_parent
@@ -226,6 +283,10 @@ class Node:
         # child.needs_heavy_recomputation()
 
     def children_insert(self, index: int, child: "Node") -> None:
+        """
+        Inserts a child to the node at the specified index and sets the parent
+        of the child to the node.
+        """
         self.children.insert(index, child)
         child.parent = self
         # child._dsu_parent = self._dsu_parent
@@ -234,6 +295,10 @@ class Node:
         # child.needs_heavy_recomputation()
 
     def children_remove(self, child: "Node") -> None:
+        """
+        Removes the specified child from the node's children and sets the parent
+        of the child to None.
+        """
         self.children.remove(child)
         child.parent = None
         # for node in child.pre_order():
@@ -246,6 +311,11 @@ class Node:
         # child.needs_heavy_recomputation()
 
     def set_parent(self, parent: Optional["Node"]) -> None:
+        """
+        Sets the parent of the node to the specified parent. If the node already
+        has a parent, it removes itself from the previous parent's children
+        list.
+        """
         if self.parent is not None:
             self.parent.children_remove(self)
 
@@ -288,20 +358,24 @@ class Node:
 
     # Printing methods
 
-    def pretty_str(self, level: int = 0) -> str:
-        return f"{'  ' * level}{self.pretty_str_self()}\n" + "".join(
-            [child.pretty_str(level + 1) for child in self.children]
+    def pretty_str(self, level: int = 0, full_hash: bool = False) -> str:
+        return f"{'  ' * level}{self.pretty_str_self(full_hash)}\n" + "".join(
+            [child.pretty_str(level + 1, full_hash) for child in self.children]
         )
 
-    def pretty_str_self(self) -> str:
+    def pretty_str_self(self, full_hash: bool = False) -> str:
         # NOTE: There might be a better way to do this...
-        a: list[Optional[str]] = [
-            f'type="{self.type}"',
-            f'label="{self.label}"' if self.label else None,
-            f"subtree_hash={str(hex(self.subtree_hash_value))[:13]}...",
-        ]
-        b: list[str] = [prop for prop in a if prop is not None]
-        return f"{self.__class__.__name__}({', '.join(b)})"
+        a: list[str] = [f'type="{self.type}"']
+
+        if self.label:
+            a.append(f'label="{self.label}"')
+
+        if full_hash:
+            a.append(f"subtree_hash={hex(self.subtree_hash_value)}")
+        else:
+            a.append(f"subtree_hash={hex(self.subtree_hash_value)[:13]}...")
+
+        return f"{self.__class__.__name__}({', '.join(a)})"
 
 
 @dataclass
@@ -452,6 +526,7 @@ class Insert:
     node: Node
     parent: Node
     pos: int
+    whole_subtree: bool = False
 
     @property
     def orig_node(self) -> Optional[Any]:
