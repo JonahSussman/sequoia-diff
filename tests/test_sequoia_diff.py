@@ -1,9 +1,7 @@
 import os
 import unittest
-from typing import cast
 from unittest.mock import MagicMock, call, patch
 
-import tree_sitter as ts
 import yaml
 
 # from sequoia_diff import SEQUOIA_RULES,
@@ -15,24 +13,23 @@ from sequoia_diff.matching import (
     match_greedy_bottom_up,
     match_greedy_top_down,
 )
-from sequoia_diff.models import (
-    Delete,
-    Insert,
-    LanguageRuleSet,
-    MappingDict,
-    Move,
-    Node,
-    Update,
+from sequoia_diff.models import Insert, LanguageRuleSet, MappingDict, Node
+from tests.util import (
+    PATH_DATA,
+    TS_LANGUAGE_JAVA,
+    dictize_action,
+    dictize_mappings,
+    node,
+    read_and_parse_tree,
 )
-from tests.util import PATH_DATA, TS_LANGUAGE_JAVA, node, read_and_parse_tree
 
 
 class TestGetTreeAndAdjacent(unittest.TestCase):
     def setUp(self):
         self.PATH_MY_DATA = os.path.join(PATH_DATA, "test_sequoia_diff")
 
-        FILE_PATH_BEFORE = os.path.join(self.PATH_MY_DATA, "0_0.java")
-        FILE_PATH_AFTER = os.path.join(self.PATH_MY_DATA, "0_1.java")
+        FILE_PATH_BEFORE = os.path.join(self.PATH_MY_DATA, "0/before.java")
+        FILE_PATH_AFTER = os.path.join(self.PATH_MY_DATA, "0/after.java")
 
         self.tree_before = read_and_parse_tree(TS_LANGUAGE_JAVA, FILE_PATH_BEFORE)
         self.tree_after = read_and_parse_tree(TS_LANGUAGE_JAVA, FILE_PATH_AFTER)
@@ -119,58 +116,6 @@ class TestGetTreeAndAdjacent(unittest.TestCase):
 
         self.assertEqual(x, y)
 
-    def test_mappings(self):
-        mappings = generate_mappings(
-            from_tree_sitter_tree(self.tree_before, self.java_rules),
-            from_tree_sitter_tree(self.tree_after, self.java_rules),
-        )
-
-        mapping_result = ""
-
-        for a_node, b_node in mappings.items():
-            a = cast(ts.Node, a_node.orig_node)
-            b = cast(ts.Node, b_node.orig_node)
-
-            self.assertEqual(a.type, b.type)
-
-            mapping_result += f"{a.type} [{a.start_byte}, {a.end_byte}] <-> {b.type} [{b.start_byte}, {b.end_byte}]\n"
-
-        with open(os.path.join(self.PATH_MY_DATA, "0_mappings.txt"), "r") as f:
-            expected_mapping_result = f.read()
-
-        self.assertEqual(mapping_result, expected_mapping_result)
-
-    def test_get_tree_diff(self):
-        actions = get_tree_diff(
-            self.tree_before, self.tree_after, from_tree_sitter_tree, [self.java_rules]
-        )
-
-        def s(a: Node):
-            if a is None:
-                return "None"
-
-            o = cast(ts.Node, a.orig_node)
-            return f"{o.type} [{o.start_byte}, {o.end_byte}]"
-
-        actions_result = ""
-
-        # TODO: Make this a util function that translates actions to some kind
-        # of yaml format.
-        for a in actions:
-            if isinstance(a, Insert):
-                actions_result += f"""- insert_node:\n    node: {s(a.node)}\n    parent: {s(a.parent)}\n    pos: {a.pos}\n"""
-            elif isinstance(a, Update):
-                actions_result += f"""- update_node:\n    node: {s(a.node)}\n    label: {a.label}\n    value: {a.value}\n"""
-            elif isinstance(a, Move):
-                actions_result += f"""- move_node:\n    node: {s(a.node)}\n    parent: {s(a.parent)}\n    pos: {a.pos}\n"""
-            elif isinstance(a, Delete):
-                actions_result += f"""- delete_node:\n    node: {s(a.node)}\n"""
-
-        with open(os.path.join(self.PATH_MY_DATA, "0_actions.yaml"), "r") as f:
-            expected_actions_result = f.read()
-
-        self.assertEqual(actions_result, expected_actions_result)
-
     def test_mappings_inside(self):
         src = node("root", children=[node("a"), node("b")])
         dst = node("root", children=[node("a"), node("c"), node("b")])
@@ -181,7 +126,11 @@ class TestGetTreeAndAdjacent(unittest.TestCase):
 
         mappings = MappingDict()
         match_greedy_top_down(mappings, src, dst)
-        self.assertEqual(list(mappings.items()), [])
+        expected_mappings: list[tuple[Node, Node]] = [
+            # (src.children[0], dst.children[0]),
+            # (src.children[1], dst.children[2]),
+        ]
+        self.assertEqual(list(mappings.items()), expected_mappings)
 
         match_greedy_bottom_up(mappings, src, dst)
         expected_mappings = [
@@ -189,9 +138,59 @@ class TestGetTreeAndAdjacent(unittest.TestCase):
             (src.children[0], dst.children[0]),
             (src.children[1], dst.children[2]),
         ]
-
         self.assertEqual(list(mappings.items()), expected_mappings)
 
         expected_actions = [Insert(node=dst.children[1], parent=src, pos=1)]
         actions = generate_simplified_chawathe_edit_script(mappings, src, dst)
         self.assertEqual(actions, expected_actions)
+
+    def test_test_cases(self):
+        # get all folders in PATH_MY_DATA
+        test_cases_dirs: list[str] = []
+        for d in os.listdir(self.PATH_MY_DATA):
+            test_case_dir = os.path.join(self.PATH_MY_DATA, d)
+            if os.path.isdir(test_case_dir):
+                test_cases_dirs.append(test_case_dir)
+
+        DEBUG_CASE = None
+
+        for test_case_dir in test_cases_dirs:
+            test_case_id = test_case_dir[len(self.PATH_MY_DATA) + 1 :]
+            test_case_name = f"test_test_cases {test_case_id}"
+
+            if DEBUG_CASE is not None and test_case_id != DEBUG_CASE:
+                continue
+
+            print(f"Running test case: {test_case_name}")
+
+            # load actions.yaml, mappings.txt, before.java, after.java
+            with open(os.path.join(test_case_dir, "actions.yaml"), "r") as f:
+                expected_actions_result = yaml.safe_load(f.read())
+            with open(os.path.join(test_case_dir, "mappings.yaml"), "r") as f:
+                expected_mapping_result = yaml.safe_load(f.read())
+
+            with open(os.path.join(test_case_dir, "before.java"), "r") as f:
+                tree_before = read_and_parse_tree(TS_LANGUAGE_JAVA, f)
+                node_before = from_tree_sitter_tree(tree_before, self.java_rules)
+            with open(os.path.join(test_case_dir, "after.java"), "r") as f:
+                tree_after = read_and_parse_tree(TS_LANGUAGE_JAVA, f)
+                node_after = from_tree_sitter_tree(tree_after, self.java_rules)
+
+            actions = [
+                dictize_action(action)
+                for action in get_tree_diff(node_before, node_after)
+            ]
+            self.assertEqual(
+                actions,
+                expected_actions_result,
+                "Failed on test case: " + test_case_name,
+            )
+
+            mappings = [
+                m for m in dictize_mappings(generate_mappings(node_before, node_after))
+            ]
+            self.assertEqual(
+                mappings,
+                expected_mapping_result,
+                "Failed on test case: " + test_case_name,
+            )

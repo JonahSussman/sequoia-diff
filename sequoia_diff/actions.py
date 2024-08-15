@@ -41,7 +41,7 @@ def lcs(
     return result
 
 
-def find_pos(dst_node: Node, dst_in_order: set[Node], mappings: MappingDict):
+def find_pos(dst_node: Node, dst_in_order: set[Node], mappings: MappingDict) -> int:
     """
     Finds the rightmost sibling of node that is to the left of node and is
     marked in order. Returns the position immediately to the right of it.
@@ -155,7 +155,9 @@ def align_children(
     return actions
 
 
-def generate_chawathe_edit_script(mappings: MappingDict, src: Node, dst: Node):
+def generate_chawathe_edit_script(
+    mappings: MappingDict, src: Node, dst: Node
+) -> list[Action]:
     """
     Perform the Chawathe algorithm to generate an edit script.
 
@@ -168,7 +170,7 @@ def generate_chawathe_edit_script(mappings: MappingDict, src: Node, dst: Node):
     cpy_src = src.deep_copy()
     cpy_mappings = MappingDict()
 
-    def fake_node():
+    def fake_node() -> Node:
         return Node(type="fake-type", label="fake-label")
 
     # TODO: See if we can use a MappingDict instead
@@ -200,7 +202,9 @@ def generate_chawathe_edit_script(mappings: MappingDict, src: Node, dst: Node):
     # Visit the nodes of dst in breadth-first order
     for current_node in dst.bfs():
         # Parent should always have a partner because of bfs traversal
-        parent_partner: Node = cpy_mappings.dst_to_src[cast(Node, current_node.parent)]
+        partner_of_parent: Node = cpy_mappings.dst_to_src[
+            cast(Node, current_node.parent)
+        ]
         partner_node: Node
 
         # If current node has no partner
@@ -208,11 +212,13 @@ def generate_chawathe_edit_script(mappings: MappingDict, src: Node, dst: Node):
             partner_node = fake_node()
             position = find_pos(current_node, dst_in_order, cpy_mappings)
 
-            actions.append(Insert(current_node, cpy_to_src[parent_partner], position))
+            actions.append(
+                Insert(current_node, cpy_to_src[partner_of_parent], position)
+            )
 
             cpy_to_src[partner_node] = current_node
             cpy_mappings.put(partner_node, current_node)
-            parent_partner.children.insert(position, partner_node)
+            partner_of_parent.children.insert(position, partner_node)
 
         # else if current_node is not the root
         elif current_node is not dst:
@@ -220,7 +226,7 @@ def generate_chawathe_edit_script(mappings: MappingDict, src: Node, dst: Node):
 
             if partner_node.parent is None:  # Should not happen
                 raise ValueError("parent is None")
-            v = partner_node.parent
+            parent_of_partner = partner_node.parent
 
             if partner_node.label != current_node.label:
                 # Append and apply update operation
@@ -228,21 +234,29 @@ def generate_chawathe_edit_script(mappings: MappingDict, src: Node, dst: Node):
                     Update(
                         cpy_to_src[partner_node],
                         cpy_to_src[partner_node].label,
-                        current_node.label if current_node.label else "",
+                        current_node.label,
                     )
                 )
                 partner_node.label = current_node.label
 
-            if parent_partner is not v:
+            # if not cpy_mappings.has(y, v):
+            if (
+                partner_of_parent.subtree_hash_value
+                != parent_of_partner.subtree_hash_value
+            ):
                 # Append and apply move operation
                 position = find_pos(current_node, dst_in_order, cpy_mappings)
                 actions.append(
-                    Move(cpy_to_src[partner_node], cpy_to_src[parent_partner], position)
+                    Move(
+                        cpy_to_src[partner_node],
+                        cpy_to_src[partner_of_parent],
+                        position,
+                    )
                 )
 
                 old_position = partner_node.position_in_parent
                 partner_node.parent.children.pop(old_position)
-                parent_partner.children.insert(position, partner_node)
+                partner_of_parent.children.insert(position, partner_node)
         else:
             partner_node = cpy_mappings.dst_to_src[current_node]
 
@@ -273,7 +287,7 @@ def generate_chawathe_edit_script(mappings: MappingDict, src: Node, dst: Node):
 
 def generate_simplified_chawathe_edit_script(
     mappings: MappingDict, src: Node, dst: Node
-):
+) -> list[Action]:
     actions = generate_chawathe_edit_script(mappings, src, dst)
 
     added_nodes: dict[Node, Insert] = {}

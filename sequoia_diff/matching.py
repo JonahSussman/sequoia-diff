@@ -1,15 +1,15 @@
 import itertools
 import sys
 from collections import defaultdict
-from typing import Callable, Optional
+from typing import Callable, NoReturn, Optional
 
 from sequoia_diff.models import MappingDict, Node, NodePriorityQueue
 from sequoia_diff.string_comparisons import normalized_tri_gram_distance
 
-MatchingFunc = Callable[[MappingDict, Node, Node], MappingDict]
+MatchingFunc = Callable[[MappingDict, Node, Node], None]
 
 
-def number_of_mapped_descendants(mappings: MappingDict, src: Node, dst: Node):
+def number_of_mapped_descendants(mappings: MappingDict, src: Node, dst: Node) -> int:
     """
     Returns the number of descendants of src that are mapped to descendants of
     dst.
@@ -32,10 +32,10 @@ def dice_similarity(mappings: MappingDict, src: Node, dst: Node) -> float:
     https://en.wikipedia.org/wiki/Dice-S%C3%B8rensen_coefficient
     """
     common = number_of_mapped_descendants(mappings, src, dst)
-    return 2.0 * common / (src.size + dst.size)
+    return float(2.0 * common / (src.size + dst.size))
 
 
-def match_greedy_top_down(mappings: MappingDict, src: Node, dst: Node):
+def match_greedy_top_down(mappings: MappingDict, src: Node, dst: Node) -> None:
     """
     Map the common subtrees of src and dst with the greatest height possible.
 
@@ -74,7 +74,6 @@ def match_greedy_top_down(mappings: MappingDict, src: Node, dst: Node):
                     pq_src.push_children(node)
                 for node in dst_set:
                     pq_dst.push_children(node)
-                pass
 
             # Unique
             elif len(src_set) == 1 and len(dst_set) == 1:
@@ -93,8 +92,6 @@ def match_greedy_top_down(mappings: MappingDict, src: Node, dst: Node):
         for a, b in itertools.product(src_set, dst_set):
             if not (a in mappings.src_to_dst or b in mappings.dst_to_src):
                 mappings.put_recursively(a, b)
-
-    return mappings
 
 
 class RTEDTree:
@@ -143,7 +140,7 @@ class RTEDTree:
         return self.nodes[i - 1]
 
 
-def match_rted(mappings: MappingDict, src: Node, dst: Node):
+def match_rted(mappings: MappingDict, src: Node, dst: Node) -> MappingDict:
     """
     RTED algorithm for tree edit distance.
 
@@ -157,13 +154,13 @@ def match_rted(mappings: MappingDict, src: Node, dst: Node):
     tree_dist = [[0.0] * (zs_dst.size + 1) for _ in range(zs_src.size + 1)]
     forest_dist = [[0.0] * (zs_dst.size + 1) for _ in range(zs_src.size + 1)]
 
-    def get_update_cost(a: Node, b: Node):
+    def get_update_cost(a: Node, b: Node) -> float:
         if a.type != b.type:
             return sys.float_info.max
 
         return normalized_tri_gram_distance(a.label, b.label)
 
-    def compute_forest_dist(i: int, j: int):
+    def compute_forest_dist(i: int, j: int) -> None:
         forest_dist[zs_src.lld(i) - 1][zs_dst.lld(j) - 1] = 0
 
         di = zs_src.lld(i)
@@ -254,7 +251,7 @@ def match_rted(mappings: MappingDict, src: Node, dst: Node):
     return mappings
 
 
-def match_last_chance(mappings: MappingDict, a: Node, b: Node):
+def match_last_chance(mappings: MappingDict, a: Node, b: Node) -> None:
     """
     Use the RTED algorithm to match the remaining nodes. Technically, any
     matching algorithm that does not produce Move edit actions will work.
@@ -312,7 +309,7 @@ def get_dst_candidates(mappings: MappingDict, src: Node) -> list[Node]:
     return candidates
 
 
-def match_greedy_bottom_up(mappings: MappingDict, src: Node, dst: Node):
+def match_greedy_bottom_up(mappings: MappingDict, src: Node, dst: Node) -> None:
     """
     https://dl.acm.org/doi/10.1145/2642937.2642982
     """
@@ -339,10 +336,8 @@ def match_greedy_bottom_up(mappings: MappingDict, src: Node, dst: Node):
             match_last_chance(mappings, node, best)
             mappings.put(node, best)
 
-    return mappings
 
-
-def match_chawathe_fast(mappings: MappingDict, src: Node, dst: Node):
+def match_chawathe_fast(mappings: MappingDict, src: Node, dst: Node) -> NoReturn:
     """
     1. M <- phi
     2. For each leaf label l do
