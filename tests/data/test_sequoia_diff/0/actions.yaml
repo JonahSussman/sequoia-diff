@@ -1,6 +1,8 @@
 - kind: insert_node
   node: Node(type="constructor_declaration", subtree_hash=0x54aad8bc0a9...)
+  parent: Node(type="class_body", subtree_hash=0xebc16a0de1f...)
   pos: 1
+  whole_subtree: true
 - kind: update_node
   new_label: changed
   node: Node(type="identifier", label="property", subtree_hash=0x2761c0f8af9...)

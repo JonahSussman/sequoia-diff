@@ -1,3 +1,4 @@
+import logging
 import unittest
 
 from sequoia_diff.string_comparisons import (
@@ -26,7 +27,8 @@ class TestStringComparisons(unittest.TestCase):
         ]
 
         for s1, s2, lev, lev_norm, tri, tri_norm in data:
-            print(f"s1: {s1}, s2: {s2}")
+            logging.debug(f"s1: {s1}, s2: {s2}")
+
             self.assertEqual(levenshtein_distance(s1, s2), lev)
             self.assertAlmostEqual(normalized_levenshtein_distance(s1, s2), lev_norm)
             self.assertEqual(tri_gram_distance(s1, s2), tri)

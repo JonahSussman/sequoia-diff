@@ -1,3 +1,4 @@
+import logging
 import os
 import unittest
 from unittest.mock import MagicMock, call, patch
@@ -161,7 +162,7 @@ class TestGetTreeAndAdjacent(unittest.TestCase):
             if DEBUG_CASE is not None and test_case_id != DEBUG_CASE:
                 continue
 
-            print(f"Running test case: {test_case_name}")
+            logging.debug(f"Running test case: {test_case_name}")
 
             # load actions.yaml, mappings.txt, before.java, after.java
             with open(os.path.join(test_case_dir, "actions.yaml"), "r") as f:
@@ -180,15 +181,17 @@ class TestGetTreeAndAdjacent(unittest.TestCase):
                 dictize_action(action)
                 for action in get_tree_diff(node_before, node_after)
             ]
+
+            mappings = [
+                m for m in dictize_mappings(generate_mappings(node_before, node_after))
+            ]
+
             self.assertEqual(
                 actions,
                 expected_actions_result,
                 "Failed on test case: " + test_case_name,
             )
 
-            mappings = [
-                m for m in dictize_mappings(generate_mappings(node_before, node_after))
-            ]
             self.assertEqual(
                 mappings,
                 expected_mapping_result,
