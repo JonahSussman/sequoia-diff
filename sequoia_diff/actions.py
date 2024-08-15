@@ -218,7 +218,11 @@ def generate_chawathe_edit_script(
 
             cpy_to_src[partner_node] = current_node
             cpy_mappings.put(partner_node, current_node)
+
+            # Funky parent stuff to keep cpy_to_src working, as using
+            # children_insert will update the subtree_hash
             partner_of_parent.children.insert(position, partner_node)
+            partner_node.parent = partner_of_parent
 
         # else if current_node is not the root
         elif current_node is not dst:
