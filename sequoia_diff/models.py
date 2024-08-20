@@ -79,7 +79,7 @@ class Node:
             f"Node("
             f"type={self.type!r}, "
             f"label={self.label!r}, "
-            f"children={self.children!r}, "
+            f"len(children)={len(self.children)}, "
             f"parent={self.parent!r}) "
             f"at {id(self)})"
         )
@@ -226,7 +226,11 @@ class Node:
         if self.parent is None:
             self._position_in_parent = -1
         else:
-            self._position_in_parent = self.parent.children.index(self)
+            # If using .index, the whole library hangs for some reason
+            for idx, child in enumerate(self.parent.children):
+                if child is self:
+                    self._position_in_parent = idx
+                    break
 
         return self._position_in_parent
 

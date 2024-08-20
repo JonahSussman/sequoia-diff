@@ -1,0 +1,180 @@
+- kind: insert_node
+  node: Node(type="import_declaration", subtree_hash=0xf7b36195993...)
+  parent: Node(type="program", subtree_hash=0x8955ff280f6...)
+  pos: 4
+  whole_subtree: true
+- kind: update_node
+  new_label: java.io.IOException
+  node: Node(type="scoped_identifier", label="java.io.FileInputStream", subtree_hash=0xb31d380ee80...)
+  old_label: java.io.FileInputStream
+- kind: update_node
+  new_label: java.nio.file.Files
+  node: Node(type="scoped_identifier", label="java.io.FileOutputStream", subtree_hash=0x9cd9e065086...)
+  old_label: java.io.FileOutputStream
+- kind: update_node
+  new_label: java.nio.file.Path
+  node: Node(type="scoped_identifier", label="java.io.IOException", subtree_hash=0xea2c70a209b...)
+  old_label: java.io.IOException
+- kind: insert_node
+  node: Node(type="local_variable_declaration", subtree_hash=0x9dbacd05803...)
+  parent: Node(type="block", subtree_hash=0xdf616123f93...)
+  pos: 1
+  whole_subtree: false
+- kind: insert_node
+  node: Node(type="local_variable_declaration", subtree_hash=0x615448f0a98...)
+  parent: Node(type="block", subtree_hash=0xdf616123f93...)
+  pos: 2
+  whole_subtree: false
+- kind: insert_node
+  node: Node(type="try_statement", subtree_hash=0x4cc0b3c3dae...)
+  parent: Node(type="block", subtree_hash=0xdf616123f93...)
+  pos: 3
+  whole_subtree: false
+- kind: update_node
+  new_label: Path
+  node: Node(type="type_identifier", label="FileInputStream", subtree_hash=0x5236caef2cc...)
+  old_label: FileInputStream
+- kind: move_node
+  node: Node(type="type_identifier", label="FileInputStream", subtree_hash=0x5236caef2cc...)
+  parent: Node(type="local_variable_declaration", subtree_hash=0x9dbacd05803...)
+  pos: 0
+- kind: insert_node
+  node: Node(type="variable_declarator", subtree_hash=0xf415c7f81e6...)
+  parent: Node(type="local_variable_declaration", subtree_hash=0x9dbacd05803...)
+  pos: 1
+  whole_subtree: false
+- kind: update_node
+  new_label: Path
+  node: Node(type="type_identifier", label="FileOutputStream", subtree_hash=0x501040c53a6...)
+  old_label: FileOutputStream
+- kind: move_node
+  node: Node(type="type_identifier", label="FileOutputStream", subtree_hash=0x501040c53a6...)
+  parent: Node(type="local_variable_declaration", subtree_hash=0x615448f0a98...)
+  pos: 0
+- kind: insert_node
+  node: Node(type="variable_declarator", subtree_hash=0x680bf021f63...)
+  parent: Node(type="local_variable_declaration", subtree_hash=0x615448f0a98...)
+  pos: 1
+  whole_subtree: false
+- kind: insert_node
+  node: Node(type="try", label="try", subtree_hash=0x8c214c29f3a...)
+  parent: Node(type="try_statement", subtree_hash=0x4cc0b3c3dae...)
+  pos: 0
+  whole_subtree: true
+- kind: move_node
+  node: Node(type="block", subtree_hash=0xf3bcc78dced...)
+  parent: Node(type="try_statement", subtree_hash=0x4cc0b3c3dae...)
+  pos: 1
+- kind: move_node
+  node: Node(type="catch_clause", subtree_hash=0x2bbca88cd3e...)
+  parent: Node(type="try_statement", subtree_hash=0x4cc0b3c3dae...)
+  pos: 2
+- kind: update_node
+  new_label: source
+  node: Node(type="identifier", label="in", subtree_hash=0xaea4ea853d1...)
+  old_label: in
+- kind: move_node
+  node: Node(type="identifier", label="in", subtree_hash=0xaea4ea853d1...)
+  parent: Node(type="variable_declarator", subtree_hash=0xf415c7f81e6...)
+  pos: 0
+- kind: move_node
+  node: Node(type="=", label="=", subtree_hash=0x5624ed5e3ea...)
+  parent: Node(type="variable_declarator", subtree_hash=0xf415c7f81e6...)
+  pos: 1
+- kind: insert_node
+  node: Node(type="method_invocation", subtree_hash=0xa329a636005...)
+  parent: Node(type="variable_declarator", subtree_hash=0xf415c7f81e6...)
+  pos: 1
+  whole_subtree: false
+- kind: update_node
+  new_label: destination
+  node: Node(type="identifier", label="out", subtree_hash=0x9a6843fafa8...)
+  old_label: out
+- kind: move_node
+  node: Node(type="identifier", label="out", subtree_hash=0x9a6843fafa8...)
+  parent: Node(type="variable_declarator", subtree_hash=0x680bf021f63...)
+  pos: 0
+- kind: move_node
+  node: Node(type="=", label="=", subtree_hash=0x5624ed5e3ea...)
+  parent: Node(type="variable_declarator", subtree_hash=0x680bf021f63...)
+  pos: 1
+- kind: insert_node
+  node: Node(type="method_invocation", subtree_hash=0x25dc6730aa7...)
+  parent: Node(type="variable_declarator", subtree_hash=0x680bf021f63...)
+  pos: 1
+  whole_subtree: false
+- kind: insert_node
+  node: Node(type="identifier", label="Paths", subtree_hash=0x32de95b534a...)
+  parent: Node(type="method_invocation", subtree_hash=0xa329a636005...)
+  pos: 0
+  whole_subtree: true
+- kind: insert_node
+  node: Node(type="identifier", label="get", subtree_hash=0xd8e20ffe6ad...)
+  parent: Node(type="method_invocation", subtree_hash=0xa329a636005...)
+  pos: 1
+  whole_subtree: true
+- kind: move_node
+  node: Node(type="argument_list", subtree_hash=0x97147f459db...)
+  parent: Node(type="method_invocation", subtree_hash=0xa329a636005...)
+  pos: 2
+- kind: insert_node
+  node: Node(type="identifier", label="Paths", subtree_hash=0x32de95b534a...)
+  parent: Node(type="method_invocation", subtree_hash=0x25dc6730aa7...)
+  pos: 0
+  whole_subtree: true
+- kind: insert_node
+  node: Node(type="identifier", label="get", subtree_hash=0xd8e20ffe6ad...)
+  parent: Node(type="method_invocation", subtree_hash=0x25dc6730aa7...)
+  pos: 1
+  whole_subtree: true
+- kind: move_node
+  node: Node(type="argument_list", subtree_hash=0xd492556b380...)
+  parent: Node(type="method_invocation", subtree_hash=0x25dc6730aa7...)
+  pos: 2
+- kind: update_node
+  new_label: Files
+  node: Node(type="identifier", label="out", subtree_hash=0x9a6843fafa8...)
+  old_label: out
+- kind: update_node
+  new_label: copy
+  node: Node(type="identifier", label="write", subtree_hash=0x9b1dcdc5bc6...)
+  old_label: write
+- kind: update_node
+  new_label: source
+  node: Node(type="identifier", label="c", subtree_hash=0xd130832092a...)
+  old_label: c
+- kind: insert_node
+  node: Node(type="identifier", label="destination", subtree_hash=0x2e8d8a0606d...)
+  parent: Node(type="argument_list", subtree_hash=0xdf661f78d5a...)
+  pos: 1
+  whole_subtree: true
+- kind: delete_node
+  node: Node(type="try", label="try", subtree_hash=0x8c214c29f3a...)
+- kind: delete_node
+  node: Node(type="new", label="new", subtree_hash=0x8e0872a0232...)
+- kind: delete_node
+  node: Node(type="type_identifier", label="FileInputStream", subtree_hash=0x5236caef2cc...)
+- kind: delete_node
+  node: Node(type="object_creation_expression", subtree_hash=0x5b89faae9b5...)
+- kind: delete_node
+  node: Node(type="resource", subtree_hash=0xaea5ea77e7d...)
+- kind: delete_node
+  node: Node(type="new", label="new", subtree_hash=0x8e0872a0232...)
+- kind: delete_node
+  node: Node(type="type_identifier", label="FileOutputStream", subtree_hash=0x501040c53a6...)
+- kind: delete_node
+  node: Node(type="object_creation_expression", subtree_hash=0x89cd395c7dc...)
+- kind: delete_node
+  node: Node(type="resource", subtree_hash=0x1a3f08ec3d6...)
+- kind: delete_node
+  node: Node(type="resource_specification", subtree_hash=0x84b1363585e...)
+- kind: delete_node
+  node: Node(type="local_variable_declaration", subtree_hash=0xdf5350e6686...)
+- kind: delete_node
+  node: Node(type="parenthesized_expression", subtree_hash=0x1d53aa6cf3d...)
+- kind: delete_node
+  node: Node(type="while_statement", subtree_hash=0x65100b75331...)
+- kind: delete_node
+  node: Node(type="block", subtree_hash=0xd595d35c301...)
+- kind: delete_node
+  node: Node(type="try_with_resources_statement", subtree_hash=0x5dc114ee7eb...)
